@@ -86,7 +86,14 @@
   #adminControls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+  }
+  #soundToggle {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    user-select: none;
+    vertical-align: middle;
   }
   #deletePassInput {
     display: none;
@@ -98,6 +105,12 @@
     color: var(--text);
     font-size: 12px;
     outline: none;
+  }
+  #deleteChk {
+    display: none;
+    cursor: pointer;
+    accent-color: var(--bubble-me);
+    margin: 0;
   }
   #deleteErrBox {
     display: none;
@@ -295,6 +308,8 @@
       <div id="adminArea">
         <div id="adminControls">
           <input id="deletePassInput" type="password" placeholder="Şifre" />
+          <input id="deleteChk" type="checkbox" />
+          <img id="soundToggle" src="soundon.png" alt="Ses" title="Sesi Aç/Kapat" />
           <div class="muted" id="statusLabel">bağlanıyor...</div>
         </div>
         <div id="deleteErrBox"></div>
@@ -332,6 +347,6 @@
     </div>
   </div>
 
-<script src="index.js?v=3"></script>
+<script src="index.js?v=5"></script>
 </body>
 </html>
