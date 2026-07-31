@@ -3,60 +3,215 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat Platform</title>
+  <title>Discord-Style Platform</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
-    .card { background: white; padding: 20px; border-radius: 8px; max-width: 500px; margin: 0 auto 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    input, button { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; }
-    button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-    button:hover { background: #0056b3; }
-    .hidden { display: none; }
-    #chat-box { border: 1px solid #ddd; height: 250px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
-    .msg { margin-bottom: 8px; }
-    .admin-badge { color: red; font-weight: bold; }
+    :root {
+      --bg-primary: #313338;
+      --bg-secondary: #2b2d31;
+      --bg-tertiary: #1e1f22;
+      --text-normal: #dbdee1;
+      --text-muted: #949ba4;
+      --accent: #5865f2;
+      --accent-hover: #4752c4;
+      --danger: #da373c;
+      --success: #23a55a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'gg sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg-tertiary); color: var(--text-normal); height: 100vh; overflow: hidden; }
+
+    .hidden { display: none !important; }
+
+    /* Layout Containers */
+    #app-container { display: flex; width: 100vw; height: 100vh; }
+    
+    /* 1. Leftmost Icon Sidebar */
+    .guilds-sidebar { width: 72px; background: var(--bg-tertiary); display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 8px; border-right: 1px solid #111214; }
+    .guild-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-normal); font-weight: bold; transition: 0.2s; }
+    .guild-icon:hover { border-radius: 16px; background: var(--accent); }
+
+    /* 2. Channels / DMs Sidebar */
+    .channels-sidebar { width: 240px; background: var(--bg-secondary); display: flex; flex-direction: column; }
+    .sidebar-header { height: 48px; border-bottom: 1px solid #1f2023; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-weight: bold; }
+    .sidebar-content { flex: 1; overflow-y: auto; padding: 12px 8px; }
+    .section-title { font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin: 12px 8px 4px; }
+    
+    .nav-item { padding: 8px 12px; border-radius: 4px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+    .nav-item:hover, .nav-item.active { background: #35373c; color: var(--text-normal); }
+
+    /* User Controls Footer (Left Side) */
+    .user-footer { height: 52px; background: #232428; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
+    .user-info { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    .settings-btn { cursor: pointer; padding: 6px; border-radius: 4px; }
+    .settings-btn:hover { background: #35373c; }
+
+    /* 3. Main Chat View */
+    .main-chat { flex: 1; background: var(--bg-primary); display: flex; flex-direction: column; }
+    .chat-header { height: 48px; border-bottom: 1px solid #26282c; display: flex; align-items: center; padding: 0 16px; font-weight: bold; font-size: 16px; }
+    .messages-container { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .message-card { display: flex; gap: 12px; }
+    .message-content { display: flex; flex-direction: column; }
+    .message-sender { font-weight: bold; font-size: 14px; margin-bottom: 2px; }
+    .message-text { color: #dbdee1; font-size: 15px; }
+
+    .chat-input-area { padding: 0 16px 24px; }
+    .chat-input-area input { width: 100%; background: #383a40; border: none; padding: 12px 16px; border-radius: 8px; color: white; outline: none; }
+
+    /* Modals & Full Overlays (Left Settings View) */
+    .modal-overlay { position: fixed; inset: 0; background: var(--bg-primary); display: flex; z-index: 100; }
+    .settings-sidebar { width: 240px; background: var(--bg-secondary); padding: 60px 20px 20px; display: flex; flex-direction: column; gap: 6px; }
+    .settings-content { flex: 1; padding: 60px 40px; overflow-y: auto; max-width: 700px; }
+    
+    input[type="text"], input[type="password"] { background: #1e1f22; border: 1px solid #111214; padding: 10px; border-radius: 4px; color: white; width: 100%; margin-bottom: 12px; }
+    button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    button:hover { background: var(--accent-hover); }
+    button.danger { background: var(--danger); }
+
+    /* Auth View */
+    #auth-view { position: fixed; inset: 0; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .auth-card { background: var(--bg-primary); padding: 32px; border-radius: 8px; width: 400px; }
+    
+    /* Decibel Slider Custom Rules */
+    .disclaimer-box { background: #2b2d31; border-left: 4px solid #f0b232; padding: 12px; margin: 16px 0; font-size: 13px; color: #f0b232; }
+    .slider-group { margin: 16px 0; }
   </style>
 </head>
 <body>
 
-  <div id="auth-view" class="card">
-    <h2>Login / Register</h2>
-    <input type="text" id="username" placeholder="Username (letter characters only)">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-    <button onclick="register()" style="background:#28a745;">Request Account Creation</button>
-    <p id="auth-msg"></p>
-  </div>
+  <audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
 
-  <div id="main-view" class="card hidden">
-    <h2>Welcome, <span id="user-display"></span></h2>
-    <button onclick="logout()" style="background:#dc3545;">Logout</button>
-    
-    <hr>
-    
-    <h3>Groups</h3>
-    <ul id="group-list"></ul>
-    <input type="text" id="new-group-name" placeholder="New Group Name">
-    <input type="text" id="group-member-token" placeholder="Custom Member Token (Optional)">
-    <button onclick="createGroup()">Create Group</button>
-
-    <hr>
-
-    <div id="chat-section" class="hidden">
-      <h3 id="active-group-title">Chat</h3>
-      <div id="chat-box"></div>
-      <input type="text" id="msg-input" placeholder="Type message...">
-      <button onclick="sendMessage()">Send</button>
+  <div id="auth-view">
+    <div class="auth-card">
+      <h2 style="margin-bottom: 16px; text-align: center;">Welcome Back!</h2>
+      <input type="text" id="username" placeholder="Username (letters only)">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="login()" style="width: 100%; margin-bottom: 8px;">Log In</button>
+      <button onclick="register()" style="width: 100%; background: var(--success);">Request Account Creation</button>
+      <p id="auth-msg" style="margin-top: 12px; font-size: 13px; color: var(--danger); text-align: center;"></p>
     </div>
   </div>
 
-  <div id="admin-view" class="card hidden">
-    <h2 class="admin-badge">Admin Panel</h2>
-    <h3>Pending Account Requests</h3>
-    <ul id="pending-list"></ul>
+  <div id="app-container" class="hidden">
     
-    <h3>Delete User</h3>
-    <input type="text" id="delete-username" placeholder="Target Username">
-    <button onclick="deleteUser()" style="background:#dc3545;">Delete Account</button>
+    <div class="guilds-sidebar">
+      <div class="guild-icon" onclick="switchTab('friends')">DM</div>
+      <div style="width: 32px; height: 2px; background: #35373c;"></div>
+      <div id="guild-icons-list"></div>
+    </div>
+
+    <div class="channels-sidebar">
+      <div class="sidebar-header">
+        <span id="sidebar-title">Direct Messages</span>
+      </div>
+      
+      <div class="sidebar-content">
+        <div id="friends-nav">
+          <div class="nav-item" onclick="showFriendsView()">👥 Friends</div>
+          <div class="section-title">Direct Messages</div>
+          <div id="dm-list"></div>
+        </div>
+
+        <div id="groups-nav">
+          <div class="section-title">Groups</div>
+          <div id="groups-list"></div>
+        </div>
+      </div>
+
+      <div class="user-footer">
+        <div class="user-info">
+          <div class="avatar" id="user-avatar">U</div>
+          <div>
+            <div id="user-display-name" style="font-size: 14px; font-weight: bold;"></div>
+            <div id="user-role-tag" style="font-size: 10px; color: var(--text-muted);"></div>
+          </div>
+        </div>
+        <div class="settings-btn" onclick="toggleSettings(true)">⚙️</div>
+      </div>
+    </div>
+
+    <div class="main-chat">
+      <div class="chat-header" id="chat-header">Select a Friend or Group</div>
+      
+      <div id="friends-main-view" class="messages-container">
+        <h3>Add Friend by Username</h3>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input type="text" id="friend-target-input" placeholder="Enter a username">
+          <button onclick="addFriend()">Send Request</button>
+        </div>
+
+        <h3 style="margin-top: 24px;">Create Group</h3>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input type="text" id="new-group-name" placeholder="Group Name">
+          <button onclick="createGroup()">Create</button>
+        </div>
+
+        <h3 style="margin-top: 24px;">Add User to Active Group</h3>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input type="text" id="add-member-username" placeholder="Username to add">
+          <button onclick="addMemberToGroup()">Add User</button>
+        </div>
+
+        <p id="friends-action-msg" style="margin-top: 12px; font-size: 14px;"></p>
+      </div>
+
+      <div id="chat-messages-view" class="messages-container hidden"></div>
+
+      <div class="chat-input-area hidden" id="chat-input-wrapper">
+        <input type="text" id="message-input" placeholder="Message..." onkeydown="handleKeyPress(event)">
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="settings-sidebar">
+      <div class="section-title">User Settings</div>
+      <div class="nav-item active" onclick="showSettingsTab('account')">My Account</div>
+      <div class="nav-item" onclick="showSettingsTab('voice')">Voice & Sound</div>
+      <div class="nav-item danger" onclick="logout()">Log Out</div>
+    </div>
+
+    <div class="settings-content">
+      <button style="float: right;" onclick="toggleSettings(false)">✕ Escalation</button>
+
+      <div id="tab-account">
+        <h2>My Account</h2>
+        <br>
+        <p><strong>Username:</strong> <span id="settings-user"></span></p>
+        <p><strong>Account Role:</strong> <span id="settings-role"></span></p>
+        
+        <div id="admin-panel" class="hidden" style="margin-top: 32px;">
+          <h3 style="color: var(--danger);">Admin Panel</h3>
+          <br>
+          <h4>Pending User Requests</h4>
+          <div id="admin-pending-list" style="margin: 12px 0;"></div>
+
+          <h4 style="margin-top: 16px;">Delete User Account</h4>
+          <input type="text" id="admin-delete-user" placeholder="Username to delete">
+          <button class="danger" onclick="adminDeleteUser()">Delete Account</button>
+        </div>
+      </div>
+
+      <div id="tab-voice" class="hidden">
+        <h2>Notification Sound Settings</h2>
+        
+        <div class="disclaimer-box">
+          ⚠️ <strong>DISCLAIMER:</strong> Once you click "Apply", your volume settings will be strictly <strong>LOCKED for 24 hours</strong> and cannot be altered until the countdown expires.
+        </div>
+
+        <div class="slider-group">
+          <label>Volume Gain: <strong><span id="db-value">0</span> dB</strong></label>
+          <input type="range" id="volume-db-slider" min="-30" max="12" value="0" step="1" oninput="updateDbDisplay(this.value)">
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <button onclick="previewSound()">🔊 Preview Sound</button>
+          <button id="apply-vol-btn" onclick="applyVolumeLock()" style="background: var(--success);">Apply (Lock 24 Hours)</button>
+        </div>
+
+        <p id="lock-status-msg" style="margin-top: 16px; font-weight: bold; color: var(--danger);"></p>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -66,21 +221,96 @@
     let currentRole = localStorage.getItem("role") || "";
     let activeGroupToken = "";
 
-    function generateToken(user, pass) {
-      let u = user.toLowerCase().replace(/[^a-z]/g, "");
-      let t = "";
-      let len = Math.max(u.length, pass.length);
-      for (let i = 0; i < len; i++) {
-        if (i < u.length) t += u[i];
-        if (i < pass.length) t += pass[i];
+    // Web Audio API Context setup for precise dB Gain adjustment
+    let audioCtx, gainNode, audioSource;
+
+    function initAudioEngine() {
+      const audioElement = document.getElementById("notify-audio");
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioCtx.createGain();
+        audioSource = audioCtx.createMediaElementSource(audioElement);
+        audioSource.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
       }
-      return t;
+      setGainFromDb(getSavedDb());
     }
 
+    function getSavedDb() {
+      return parseFloat(localStorage.getItem("sound_db") || "0");
+    }
+
+    function setGainFromDb(db) {
+      if (!gainNode) return;
+      // Formula: Gain = 10 ^ (dB / 20)
+      const gainValue = Math.pow(10, db / 20);
+      gainNode.gain.setValueAtTime(gainValue, audioCtx.currentTime);
+    }
+
+    function playNotificationSound() {
+      // Plays sound ONLY if window is not focused
+      if (!document.hasFocus()) {
+        const audio = document.getElementById("notify-audio");
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log("Audio play blocked by browser:", e));
+      }
+    }
+
+    // --- Sound Settings Lock Out Mechanics ---
+    function checkVolumeLock() {
+      const lockedUntil = localStorage.getItem("vol_locked_until");
+      const slider = document.getElementById("volume-db-slider");
+      const applyBtn = document.getElementById("apply-vol-btn");
+      const msg = document.getElementById("lock-status-msg");
+
+      if (lockedUntil && Date.now() < parseInt(lockedUntil)) {
+        slider.disabled = true;
+        applyBtn.disabled = true;
+        const remainingHours = ((parseInt(lockedUntil) - Date.now()) / (1000 * 60 * 60)).toFixed(1);
+        msg.innerText = `Settings locked! You cannot alter sound volume for another ${remainingHours} hours.`;
+      } else {
+        slider.disabled = false;
+        applyBtn.disabled = false;
+        msg.innerText = "";
+      }
+    }
+
+    function updateDbDisplay(val) {
+      document.getElementById("db-value").innerText = val;
+    }
+
+    function previewSound() {
+      initAudioEngine();
+      const db = parseFloat(document.getElementById("volume-db-slider").value);
+      setGainFromDb(db);
+      
+      const audio = document.getElementById("notify-audio");
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      audio.currentTime = 0;
+      audio.play();
+    }
+
+    function applyVolumeLock() {
+      const db = parseFloat(document.getElementById("volume-db-slider").value);
+      localStorage.setItem("sound_db", db);
+      
+      // Lock for 24 Hours
+      const lockTimestamp = Date.now() + (24 * 60 * 60 * 1000);
+      localStorage.setItem("vol_locked_until", lockTimestamp);
+
+      setGainFromDb(db);
+      checkVolumeLock();
+      alert("Volume set and locked for 24 hours!");
+    }
+
+    // --- Authentication ---
     async function login() {
       let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
       let p = document.getElementById("password").value;
-      
+
       const res = await fetch(`${BACKEND}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,7 +324,7 @@
         localStorage.setItem("token", token);
         localStorage.setItem("username", currentUser);
         localStorage.setItem("role", currentRole);
-        initUI();
+        location.reload();
       } else {
         document.getElementById("auth-msg").innerText = data.error;
       }
@@ -118,89 +348,208 @@
       location.reload();
     }
 
-    function initUI() {
-      if (!token) return;
-      document.getElementById("auth-view").classList.add("hidden");
-      document.getElementById("main-view").classList.remove("hidden");
-      document.getElementById("user-display").innerText = currentUser;
+    // --- Real-time Streaming (I-Frame & P-Frame SSE) ---
+    function startEventStream() {
+      const eventSource = new EventSource(`${BACKEND}/api/stream?token=${token}`);
 
-      if (currentRole === "admin") {
-        document.getElementById("admin-view").classList.remove("hidden");
-        loadPendingRequests();
-      }
-      loadGroups();
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        // I-FRAME: Full Snapshot on Connect
+        if (data.frameType === "I-FRAME") {
+          renderGroupsList(data.groups);
+          renderFriendsList(data.friends);
+        }
+
+        // P-FRAME: Delta Updates
+        if (data.frameType === "P-FRAME") {
+          if (data.type === "NEW_MESSAGE") {
+            if (data.payload.group_token === activeGroupToken) {
+              appendMessageCard(data.payload);
+            }
+            if (data.payload.sender !== currentUser) {
+              playNotificationSound();
+            }
+          } else if (data.type === "FRIEND_ADDED" || data.type === "GROUP_CREATED") {
+            // Refresh list dynamically
+            fetchInitialState();
+          }
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setTimeout(startEventStream, 3000); // Auto-reconnect
+      };
     }
 
-    async function loadGroups() {
-      const res = await fetch(`${BACKEND}/api/groups`, {
-        headers: { "Authorization": token }
-      });
+    async function fetchInitialState() {
+      const res = await fetch(`${BACKEND}/api/groups`, { headers: { "Authorization": token } });
       const groups = await res.json();
-      const list = document.getElementById("group-list");
+      renderGroupsList(groups);
+    }
+
+    function renderGroupsList(groups) {
+      const list = document.getElementById("groups-list");
       list.innerHTML = "";
       groups.forEach(g => {
-        let li = document.createElement("li");
-        li.innerHTML = `<a href="#" onclick="selectGroup('${g.group_token}', '${g.group_name}')">${g.group_name} (${g.group_token})</a>`;
-        list.appendChild(li);
+        const item = document.createElement("div");
+        item.className = "nav-item";
+        item.innerText = `# ${g.group_name}`;
+        item.onclick = () => selectGroup(g.group_token, g.group_name);
+        list.appendChild(item);
       });
+    }
+
+    function renderFriendsList(friends) {
+      const list = document.getElementById("dm-list");
+      list.innerHTML = "";
+      friends.forEach(f => {
+        const friendUser = f.user1 === currentUser ? f.user2 : f.user1;
+        const item = document.createElement("div");
+        item.className = "nav-item";
+        item.innerText = `@ ${friendUser}`;
+        item.onclick = () => openDM(friendUser);
+        list.appendChild(item);
+      });
+    }
+
+    // Actions
+    async function openDM(targetUser) {
+      const res = await fetch(`${BACKEND}/api/dm/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ targetUsername: targetUser })
+      });
+      const data = await res.json();
+      selectGroup(data.groupToken, `@${targetUser}`);
+    }
+
+    async function addFriend() {
+      const target = document.getElementById("friend-target-input").value;
+      const res = await fetch(`${BACKEND}/api/friends/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ targetUsername: target })
+      });
+      const data = await res.json();
+      document.getElementById("friends-action-msg").innerText = data.message || data.error;
     }
 
     async function createGroup() {
-      const name = document.getElementById("new-group-name").value;
-      const mToken = document.getElementById("group-member-token").value;
+      const groupName = document.getElementById("new-group-name").value;
       await fetch(`${BACKEND}/api/groups/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupName: name, memberToken: mToken })
+        body: JSON.stringify({ groupName })
       });
-      loadGroups();
+      document.getElementById("friends-action-msg").innerText = "Group created!";
     }
 
-    function selectGroup(token, name) {
-      activeGroupToken = token;
-      document.getElementById("active-group-title").innerText = `Chat: ${name}`;
-      document.getElementById("chat-section").classList.remove("hidden");
-      loadMessages();
+    async function addMemberToGroup() {
+      if (!activeGroupToken) return alert("Select a group first!");
+      const targetUsername = document.getElementById("add-member-username").value;
+      const res = await fetch(`${BACKEND}/api/groups/add-member`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ groupToken: activeGroupToken, targetUsername })
+      });
+      const data = await res.json();
+      document.getElementById("friends-action-msg").innerText = data.message || data.error;
     }
 
-    async function loadMessages() {
-      if (!activeGroupToken) return;
-      const res = await fetch(`${BACKEND}/api/messages/${activeGroupToken}`, {
-        headers: { "Authorization": token }
-      });
+    async function selectGroup(groupToken, name) {
+      activeGroupToken = groupToken;
+      document.getElementById("chat-header").innerText = name;
+      document.getElementById("friends-main-view").classList.add("hidden");
+      document.getElementById("chat-messages-view").classList.remove("hidden");
+      document.getElementById("chat-input-wrapper").classList.remove("hidden");
+      
+      // Fetch History
+      const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
       const msgs = await res.json();
-      const box = document.getElementById("chat-box");
-      box.innerHTML = "";
-      msgs.forEach(m => {
-        let div = document.createElement("div");
-        div.className = "msg";
-        div.innerHTML = `<strong>${m.sender}:</strong> ${m.content}`;
-        box.appendChild(div);
-      });
+      const container = document.getElementById("chat-messages-view");
+      container.innerHTML = "";
+      msgs.forEach(appendMessageCard);
+    }
+
+    function appendMessageCard(msg) {
+      const container = document.getElementById("chat-messages-view");
+      const card = document.createElement("div");
+      card.className = "message-card";
+      card.innerHTML = `
+        <div class="avatar">${msg.sender[0].toUpperCase()}</div>
+        <div class="message-content">
+          <div class="message-sender">${msg.sender}</div>
+          <div class="message-text">${msg.content}</div>
+        </div>
+      `;
+      container.appendChild(card);
+      container.scrollTop = container.scrollHeight;
     }
 
     async function sendMessage() {
-      const content = document.getElementById("msg-input").value;
+      const input = document.getElementById("message-input");
+      if (!input.value.trim() || !activeGroupToken) return;
+
+      const content = input.value;
+      input.value = "";
+
       await fetch(`${BACKEND}/api/messages/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ groupToken: activeGroupToken, content })
       });
-      document.getElementById("msg-input").value = "";
-      loadMessages();
     }
 
-    async function loadPendingRequests() {
-      const res = await fetch(`${BACKEND}/api/admin/pending`, {
-        headers: { "Authorization": token }
-      });
+    function handleKeyPress(e) {
+      if (e.key === "Enter") sendMessage();
+    }
+
+    function showFriendsView() {
+      document.getElementById("friends-main-view").classList.remove("hidden");
+      document.getElementById("chat-messages-view").classList.add("hidden");
+      document.getElementById("chat-input-wrapper").classList.add("hidden");
+      document.getElementById("chat-header").innerText = "Friends Dashboard";
+    }
+
+    // Modal & View Toggles
+    function toggleSettings(show) {
+      const modal = document.getElementById("settings-modal");
+      if (show) {
+        modal.classList.remove("hidden");
+        document.getElementById("settings-user").innerText = currentUser;
+        document.getElementById("settings-role").innerText = currentRole;
+        
+        const db = getSavedDb();
+        document.getElementById("volume-db-slider").value = db;
+        updateDbDisplay(db);
+        checkVolumeLock();
+
+        if (currentRole === "admin") {
+          document.getElementById("admin-panel").classList.remove("hidden");
+          loadAdminPending();
+        }
+      } else {
+        modal.classList.add("hidden");
+      }
+    }
+
+    function showSettingsTab(tab) {
+      document.getElementById("tab-account").classList.toggle("hidden", tab !== 'account');
+      document.getElementById("tab-voice").classList.toggle("hidden", tab !== 'voice');
+    }
+
+    async function loadAdminPending() {
+      const res = await fetch(`${BACKEND}/api/admin/pending`, { headers: { "Authorization": token } });
       const pending = await res.json();
-      const list = document.getElementById("pending-list");
+      const list = document.getElementById("admin-pending-list");
       list.innerHTML = "";
       pending.forEach(p => {
-        let li = document.createElement("li");
-        li.innerHTML = `${p.username} | <button onclick="adminAction(${p.id}, 'approve')">Approve</button> <button onclick="adminAction(${p.id}, 'deny')">Deny</button>`;
-        list.appendChild(li);
+        const item = document.createElement("div");
+        item.style.margin = "8px 0";
+        item.innerHTML = `${p.username} <button onclick="adminAction(${p.id}, 'approve')">Approve</button> <button class="danger" onclick="adminAction(${p.id}, 'deny')">Deny</button>`;
+        list.appendChild(item);
       });
     }
 
@@ -210,11 +559,11 @@
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ id, action })
       });
-      loadPendingRequests();
+      loadAdminPending();
     }
 
-    async function deleteUser() {
-      const username = document.getElementById("delete-username").value;
+    async function adminDeleteUser() {
+      const username = document.getElementById("admin-delete-user").value;
       await fetch(`${BACKEND}/api/admin/delete-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
@@ -223,7 +572,19 @@
       alert(`Deleted ${username}`);
     }
 
-    window.onload = initUI;
+    // Initialize App
+    window.onload = () => {
+      if (token) {
+        document.getElementById("auth-view").classList.add("hidden");
+        document.getElementById("app-container").classList.remove("hidden");
+        document.getElementById("user-display-name").innerText = currentUser;
+        document.getElementById("user-avatar").innerText = currentUser[0].toUpperCase();
+        document.getElementById("user-role-tag").innerText = currentRole;
+        
+        initAudioEngine();
+        startEventStream();
+      }
+    };
   </script>
 </body>
 </html>
