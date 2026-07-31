@@ -23,7 +23,7 @@
 
     #app-container { display: flex; width: 100vw; height: 100vh; }
 
-    /* Single Sidebar */
+    /* Left Sidebar */
     .sidebar { width: 300px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; }
     .user-profile-card { padding: 16px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
     .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; border: 2px solid var(--accent); }
@@ -52,20 +52,26 @@
     .group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 6px; }
     .group-header .sender-name { font-weight: bold; font-size: 14px; color: var(--accent-hover); }
     .message-group.self .group-header .sender-name { color: #5eead4; }
-    .group-lines { display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+    .group-lines { display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+    .chat-img-attachment { max-width: 300px; max-height: 250px; border-radius: 8px; border: 1px solid #334155; margin-top: 4px; object-fit: contain; }
     .group-timestamp { font-size: 11px; color: var(--text-muted); align-self: flex-end; margin-top: 6px; }
 
-    /* Chat Input Bar */
-    .chat-input-container { padding: 16px 24px; background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; gap: 12px; }
-    .chat-input-container input { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px 16px; border-radius: 8px; color: white; outline: none; }
-    
+    /* Chat Input Bar with Image Attachment Button */
+    .chat-input-container { padding: 16px 24px; background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; gap: 12px; align-items: center; }
+    .chat-input-container input[type="text"] { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px 16px; border-radius: 8px; color: white; outline: none; margin: 0; }
+    .attach-btn { background: var(--bg-card); border: 1px solid #475569; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    .attach-btn:hover { background: #475569; }
+
     input[type="text"], input[type="password"] { background: #0f172a; border: 1px solid #334155; padding: 10px; border-radius: 6px; color: white; width: 100%; margin-bottom: 12px; }
     button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     button:hover { background: var(--accent-hover); }
     button.danger { background: var(--danger); }
 
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; z-index: 100; align-items: center; justify-content: center; }
-    .modal-card { background: var(--bg-sidebar); padding: 32px; border-radius: 12px; width: 440px; border: 1px solid #334155; }
+    .modal-card { background: var(--bg-sidebar); padding: 32px; border-radius: 12px; width: 460px; border: 1px solid #334155; max-height: 90vh; overflow-y: auto; }
+
+    /* Canvas PFP Editor Style */
+    #pfp-editor-canvas { background: #000; border: 2px dashed var(--accent); border-radius: 50%; cursor: grab; display: block; margin: 12px auto; }
   </style>
 </head>
 <body>
@@ -73,7 +79,7 @@
   <audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
 
   <div id="auth-view" class="modal-overlay">
-    <div class="modal-card">
+    <div class="modal-card" style="width: 380px;">
       <h2 style="margin-bottom: 16px; text-align: center;">Aura Chat</h2>
       <input type="text" id="username" placeholder="Username (letters only)">
       <input type="password" id="password" placeholder="Password">
@@ -136,6 +142,8 @@
       <div id="chat-messages-panel" class="content-panel hidden"></div>
 
       <div id="chat-input-area" class="chat-input-container hidden">
+        <button class="attach-btn" title="Send Image (Max 1MB)" onclick="document.getElementById('chat-img-input').click()">📷</button>
+        <input type="file" id="chat-img-input" accept="image/*" class="hidden" onchange="processAndSendImageMessage(this)">
         <input type="text" id="message-input" placeholder="Type a message..." onkeydown="handleKeyPress(event)">
         <button onclick="sendMessage()">Send</button>
       </div>
@@ -165,13 +173,22 @@
   </div>
 
   <div id="settings-modal" class="modal-overlay hidden">
-    <div class="modal-card" style="width: 500px;">
+    <div class="modal-card">
       <h3>User Settings</h3>
       <hr style="border-color: #334155; margin: 12px 0;">
 
-      <h4>Upload Profile Picture (Auto Compress &le; 512KB)</h4>
-      <input type="file" id="pfp-file-input" accept="image/*" style="margin: 12px 0;">
-      <button onclick="processAndUploadPFP()" style="margin-bottom: 16px;">Upload Photo</button>
+      <h4>Built-in Profile Picture Editor</h4>
+      <input type="file" id="pfp-file-input" accept="image/*" style="margin: 8px 0;" onchange="loadPfpIntoEditor(this)">
+      
+      <div id="editor-wrapper" class="hidden">
+        <canvas id="pfp-editor-canvas" width="180" height="180"></canvas>
+        <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+          <span style="font-size: 12px;">Zoom:</span>
+          <input type="range" id="pfp-zoom" min="0.5" max="3" step="0.05" value="1" oninput="drawPfpEditor()">
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); text-align: center;">Drag image to adjust position</p>
+        <button onclick="saveCroppedPFP()" style="width: 100%; margin: 8px 0 16px;">Save & Upload Avatar</button>
+      </div>
 
       <h4>Notification Gain</h4>
       <p style="font-size: 12px; color: #f0b232; margin: 4px 0 8px;">⚠️ Volume changes lock for 24 hours after applying.</p>
@@ -207,46 +224,78 @@
     let eventSource = null;
     let audioCtx, gainNode;
 
-    // --- PFP Upload & Compression ---
-    function processAndUploadPFP() {
-      const fileInput = document.getElementById("pfp-file-input");
-      if (!fileInput.files.length) return alert("Select an image file!");
+    // --- Interactive PFP Canvas Editor State ---
+    let pfpImg = new Image();
+    let pfpOffsetX = 0, pfpOffsetY = 0;
+    let isDraggingPfp = false, dragStartX = 0, dragStartY = 0;
 
+    function loadPfpIntoEditor(input) {
+      if (!input.files.length) return;
       const reader = new FileReader();
       reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width, height = img.height;
-          const maxDim = 300;
-
-          if (width > height) {
-            if (width > maxDim) { height *= maxDim / width; width = maxDim; }
-          } else {
-            if (height > maxDim) { width *= maxDim / height; height = maxDim; }
-          }
-
-          canvas.width = width; canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-
-          let quality = 0.85;
-          let base64 = canvas.toDataURL("image/jpeg", quality);
-
-          while (base64.length > 512 * 1024 && quality > 0.1) {
-            quality -= 0.1;
-            base64 = canvas.toDataURL("image/jpeg", quality);
-          }
-
-          if (base64.length > 512 * 1024) return alert("Image exceeds size limit.");
-          uploadPFP(base64);
+        pfpImg = new Image();
+        pfpImg.onload = () => {
+          pfpOffsetX = 0; pfpOffsetY = 0;
+          document.getElementById("pfp-zoom").value = 1;
+          document.getElementById("editor-wrapper").classList.remove("hidden");
+          drawPfpEditor();
         };
-        img.src = e.target.result;
+        pfpImg.src = e.target.result;
       };
-      reader.readAsDataURL(fileInput.files[0]);
+      reader.readAsDataURL(input.files[0]);
     }
 
-    async function uploadPFP(base64) {
+    function drawPfpEditor() {
+      const canvas = document.getElementById("pfp-editor-canvas");
+      const ctx = canvas.getContext("2d");
+      const zoom = parseFloat(document.getElementById("pfp-zoom").value);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+
+      // Circle Clip Mask
+      ctx.beginPath();
+      ctx.arc(90, 90, 90, 0, Math.PI * 2);
+      ctx.clip();
+
+      const drawWidth = pfpImg.width * zoom;
+      const drawHeight = pfpImg.height * zoom;
+      const x = (canvas.width - drawWidth) / 2 + pfpOffsetX;
+      const y = (canvas.height - drawHeight) / 2 + pfpOffsetY;
+
+      ctx.drawImage(pfpImg, x, y, drawWidth, drawHeight);
+      ctx.restore();
+    }
+
+    // PFP Mouse Pan Setup
+    const canvasEl = document.getElementById("pfp-editor-canvas");
+    canvasEl.addEventListener("mousedown", (e) => {
+      isDraggingPfp = true;
+      dragStartX = e.clientX - pfpOffsetX;
+      dragStartY = e.clientY - pfpOffsetY;
+      canvasEl.style.cursor = "grabbing";
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!isDraggingPfp) return;
+      pfpOffsetX = e.clientX - dragStartX;
+      pfpOffsetY = e.clientY - dragStartY;
+      drawPfpEditor();
+    });
+    window.addEventListener("mouseup", () => {
+      isDraggingPfp = false;
+      canvasEl.style.cursor = "grab";
+    });
+
+    async function saveCroppedPFP() {
+      const canvas = document.getElementById("pfp-editor-canvas");
+      let quality = 0.85;
+      let base64 = canvas.toDataURL("image/jpeg", quality);
+
+      while (base64.length > 512 * 1024 && quality > 0.1) {
+        quality -= 0.1;
+        base64 = canvas.toDataURL("image/jpeg", quality);
+      }
+
       const res = await fetch(`${BACKEND}/api/user/pfp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
@@ -261,6 +310,62 @@
         const data = await res.json();
         alert(data.error);
       }
+    }
+
+    // --- Image Sending Feature (Auto Compressor down to 1MB) ---
+    function processAndSendImageMessage(input) {
+      if (!input.files.length || !activeGroupToken) return;
+      const file = input.files[0];
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width, height = img.height;
+          const maxDim = 1200; // Resize boundaries for chat images
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height *= maxDim / width; width = maxDim;
+            } else {
+              width *= maxDim / height; height = maxDim;
+            }
+          }
+
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let quality = 0.85;
+          let base64 = canvas.toDataURL("image/jpeg", quality);
+
+          // Compress down strictly under 1MB (1,048,576 bytes)
+          while (base64.length > 1024 * 1024 && quality > 0.1) {
+            quality -= 0.1;
+            base64 = canvas.toDataURL("image/jpeg", quality);
+          }
+
+          if (base64.length > 1024 * 1024) {
+            return alert("Image is too large to send even after compression!");
+          }
+
+          // Send compressed Base64 image payload as message content
+          sendChatMessagePayload(base64);
+          input.value = "";
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function sendChatMessagePayload(content) {
+      if (!activeGroupToken) return;
+      await fetch(`${BACKEND}/api/messages/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ groupToken: activeGroupToken, content })
+      });
     }
 
     function renderUserAvatar(username, pfpUrl, containerId = "user-avatar-container") {
@@ -368,14 +473,14 @@
       location.reload();
     }
 
-    // --- Stream Engine ---
+    // --- Real-Time Stream & Rendering Engine ---
     function startStream() {
       eventSource = new EventSource(`${BACKEND}/api/stream?token=${token}`);
       eventSource.onmessage = (e) => {
         const data = JSON.parse(e.data);
         if (data.frameType === "I-FRAME") {
-          renderFriends(data.friends);
-          renderGroups(data.groups);
+          renderFriends(data.friends || []);
+          renderGroups(data.groups || []);
         } else if (data.frameType === "P-FRAME") {
           if (data.type === "NEW_MESSAGE") {
             if (data.payload.group_token === activeGroupToken) {
@@ -383,7 +488,8 @@
             }
             if (data.payload.sender !== currentUser) playNotification();
           } else if (data.type.startsWith("FRIEND_") || data.type.startsWith("GROUP_")) {
-            location.reload();
+            // Hot-reload list rendering
+            startStream();
           }
         }
       };
@@ -428,7 +534,7 @@
       });
     }
 
-    // --- Message Grouping ---
+    // --- Message Grouping Engine ---
     async function loadMessages(groupToken) {
       const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
       const msgs = await res.json();
@@ -440,6 +546,7 @@
       msgs.forEach(msg => {
         const isSelf = msg.sender === currentUser;
         const msgTime = msg.created_at;
+        const isImage = msg.content.startsWith("data:image/");
 
         if (
           currentGroup &&
@@ -447,7 +554,11 @@
           (msgTime - currentGroup.lastTimestamp) <= (5 * 60 * 1000)
         ) {
           const line = document.createElement("div");
-          line.innerText = msg.content;
+          if (isImage) {
+            line.innerHTML = `<img src="${msg.content}" class="chat-img-attachment">`;
+          } else {
+            line.innerText = msg.content;
+          }
           currentGroup.linesElement.appendChild(line);
           currentGroup.lastTimestamp = msgTime;
           currentGroup.timeElement.innerText = new Date(msgTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -467,7 +578,11 @@
           const linesContainer = document.createElement("div");
           linesContainer.className = "group-lines";
           const firstLine = document.createElement("div");
-          firstLine.innerText = msg.content;
+          if (isImage) {
+            firstLine.innerHTML = `<img src="${msg.content}" class="chat-img-attachment">`;
+          } else {
+            firstLine.innerText = msg.content;
+          }
           linesContainer.appendChild(firstLine);
 
           const timeStamp = document.createElement("div");
@@ -490,7 +605,6 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    // Dynamic Navigation
     function showFriendsView() {
       activeGroupToken = "";
       document.getElementById("btn-friends-tab").classList.add("active");
@@ -500,7 +614,6 @@
       document.getElementById("chat-messages-panel").classList.add("hidden");
       document.getElementById("chat-input-area").classList.add("hidden");
 
-      // Deactivate all group items in sidebar
       document.querySelectorAll("#groups-nav-list .list-item").forEach(el => el.classList.remove("active"));
     }
 
@@ -509,7 +622,6 @@
       document.getElementById("btn-friends-tab").classList.remove("active");
       document.getElementById("active-title").innerText = name;
       
-      // Add member button directly into group header bar if not a private DM
       if (!name.startsWith("@")) {
         document.getElementById("header-actions").innerHTML = `<button onclick="toggleAddMemberModal(true)">+ Add Member</button>`;
       } else {
@@ -553,7 +665,6 @@
       location.reload();
     }
 
-    // Modals
     function toggleCreateGroupModal(show) { document.getElementById("create-group-modal").classList.toggle("hidden", !show); }
     function toggleAddMemberModal(show) { document.getElementById("add-member-modal").classList.toggle("hidden", !show); }
     function toggleSettings(show) {
@@ -605,11 +716,7 @@
       if (!input.value.trim() || !activeGroupToken) return;
       const content = input.value;
       input.value = "";
-      await fetch(`${BACKEND}/api/messages/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupToken: activeGroupToken, content })
-      });
+      sendChatMessagePayload(content);
     }
 
     function handleKeyPress(e) { if (e.key === "Enter") sendMessage(); }
