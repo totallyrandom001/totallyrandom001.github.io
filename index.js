@@ -3,7 +3,10 @@ const BACKEND_URL = "https://sevrercde.onrender.com";
 
 let myName = "";
 let pendingImage = null; // base64 data URL
-const renderedKeys = new Set(); // Dual deduplication tracker (IDs + signatures)
+const renderedKeys = new Set(); // Dual deduplication tracker
+
+// Stacking Tracker
+let lastMsgInfo = null;
 
 // Ses & Bildirim Ayarları
 let soundEnabled = true;
@@ -45,7 +48,6 @@ let dragStartX = 0, dragStartY = 0;
 let panStartX = 0, panStartY = 0;
 const MIN_ZOOM = 1, MAX_ZOOM = 6;
 
-// Otomatik Odaklanma: Sayfa ilk açıldığında isim kutusunu odakla
 nameInput.focus();
 
 function showError(msg) {
@@ -62,13 +64,11 @@ function showLoading(show = true) {
   }
 }
 
-// Sound Toggle Listener
 soundToggle.addEventListener("click", () => {
   soundEnabled = !soundEnabled;
   soundToggle.src = soundEnabled ? "soundon.png" : "soundoff.png";
 });
 
-// Clear unread count when user switches back to this tab
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     unreadCount = 0;
@@ -76,7 +76,6 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-// Secret delete trigger on status click
 statusLabel.addEventListener("click", () => {
   const isHidden = deletePassInput.style.display === "none" || !deletePassInput.style.display;
   if (isHidden) {
@@ -131,15 +130,12 @@ function startChat() {
   if (!val) { nameInput.focus(); return; }
   
   isJoined = true;
-  myName = val;
+  myName = val.toLowerCase(); // Lowercase username
   whoLabel.textContent = myName + " olarak bağlandınız";
   nameScreen.style.display = "none";
   chatScreen.style.display = "flex";
 
-  // Otomatik Odaklanma: Sohbet ekranı açılır açılmaz mesaj yazma alanını odakla
   textInput.focus();
-
-  // Pre-load audio on user interaction to pass browser autoplay restrictions
   notifyAudio.load();
 
   loadInitial();
@@ -164,7 +160,8 @@ function connectStream() {
           renderMessage(msg);
           scrollToBottom();
 
-          if (msg.name !== myName) {
+          const senderName = (msg.name || '').toLowerCase();
+          if (senderName !== myName) {
             if (document.hidden) {
               unreadCount++;
               document.title = `[${unreadCount}] ${ORIGINAL_TITLE}`;
@@ -191,7 +188,8 @@ function shouldRender(m) {
     return false;
   }
   
-  const sig = `sig_${m.name}_${m.created_at}_${(m.message || '').slice(0, 30)}`;
+  const mName = (m.name || '').toLowerCase();
+  const sig = `sig_${mName}_${m.created_at}_${(m.message || '').slice(0, 30)}`;
   if (renderedKeys.has(sig)) {
     return false;
   }
@@ -328,7 +326,7 @@ async function sendMessage() {
   } finally {
     sendBtn.disabled = false;
     showLoading(false);
-    textInput.focus(); // Re-focus message field after sending
+    textInput.focus();
   }
 }
 
@@ -473,8 +471,32 @@ function downloadImage(dataUrl, filename = "image.png") {
 }
 
 function renderMessage(m) {
+  const mName = (m.name || '').toLowerCase();
+  const mTime = m.created_at;
+  const FIVE_MINS = 5 * 60 * 1000;
+
+  // Check if message belongs to the current stack
+  const isSameStack = lastMsgInfo &&
+    lastMsgInfo.name === mName &&
+    (mTime - lastMsgInfo.time) <= FIVE_MINS;
+
   const wrap = document.createElement("div");
-  wrap.className = "msg " + (m.name === myName ? "me" : "other");
+  wrap.className = "msg " + (mName === myName ? "me" : "other");
+  
+  if (isSameStack) {
+    wrap.classList.add("stacked");
+    // Remove timestamp footer from previous message in stack
+    if (lastMsgInfo.metaEl) {
+      lastMsgInfo.metaEl.remove();
+      lastMsgInfo.metaEl = null;
+    }
+  } else {
+    // Top of stack: render username header
+    const authorEl = document.createElement("div");
+    authorEl.className = "msg-author";
+    authorEl.textContent = mName;
+    wrap.appendChild(authorEl);
+  }
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
@@ -506,13 +528,21 @@ function renderMessage(m) {
   }
   wrap.appendChild(bubble);
 
+  // Bottom of stack: render timestamp
   const meta = document.createElement("div");
   meta.className = "meta";
-  const d = new Date(m.created_at);
-  meta.textContent = m.name + " • " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const d = new Date(mTime);
+  meta.textContent = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
   wrap.appendChild(meta);
 
   messagesEl.appendChild(wrap);
+
+  // Update last message info
+  lastMsgInfo = {
+    name: mName,
+    time: mTime,
+    metaEl: meta
+  };
 }
 
 function scrollToBottom() {
@@ -520,6 +550,7 @@ function scrollToBottom() {
 }
 
 async function loadInitial() {
+  lastMsgInfo = null; // Reset stack tracking on reload
   try {
     const res = await fetch(BACKEND_URL + "/api/messages?limit=50");
     const data = await res.json();
