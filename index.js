@@ -1,11 +1,9 @@
 // ==== AYARLAR ====
-// Render üzerindeki backend adresiniz ile değiştirin:
 const BACKEND_URL = "https://sevrercde.onrender.com";
-const POLL_INTERVAL_MS = 5000;
 
 let myName = "";
-let lastId = 0;
 let pendingImage = null; // base64 data URL
+const renderedKeys = new Set(); // Dual deduplication tracker (IDs + signatures)
 
 const nameScreen = document.getElementById("nameScreen");
 const chatScreen = document.getElementById("chatScreen");
@@ -51,30 +49,76 @@ function showLoading(show = true) {
   }
 }
 
+let isJoined = false;
 joinBtn.addEventListener("click", startChat);
 nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") startChat(); });
 
 function startChat() {
+  if (isJoined) return;
   const val = nameInput.value.trim();
   if (!val) { nameInput.focus(); return; }
+  
+  isJoined = true;
   myName = val;
   whoLabel.textContent = myName + " olarak bağlandınız";
   nameScreen.style.display = "none";
   chatScreen.style.display = "flex";
+
+  // Requests ONLY start here
   loadInitial();
-  schedulePoll();
+  connectStream();
 }
 
-let pollTimer = null;
-function schedulePoll() {
-  if (pollTimer) clearTimeout(pollTimer);
-  pollTimer = setTimeout(async () => {
-    await poll();
-    schedulePoll();
-  }, POLL_INTERVAL_MS);
+let eventSource = null;
+function connectStream() {
+  if (eventSource) eventSource.close();
+  
+  eventSource = new EventSource(BACKEND_URL + "/api/stream");
+
+  eventSource.onopen = () => {
+    statusLabel.textContent = "bağlı";
+  };
+
+  eventSource.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg && msg.name) {
+        if (shouldRender(msg)) {
+          renderMessage(msg);
+          scrollToBottom();
+        }
+      }
+    } catch (e) {
+      console.error("SSE parse hatası:", e);
+    }
+  };
+
+  eventSource.onerror = () => {
+    statusLabel.textContent = "yeniden bağlanıyor...";
+  };
 }
 
-const MAX_IMAGE_BYTES = 1024 * 1024; // 1MB hedef (sıkıştırma sonrası)
+// Strict Deduplication Check
+function shouldRender(m) {
+  // 1. Check DB ID
+  if (m.id && renderedKeys.has(`id_${m.id}`)) {
+    return false;
+  }
+  
+  // 2. Check Content Signature
+  const sig = `sig_${m.name}_${m.created_at}_${(m.message || '').slice(0, 30)}`;
+  if (renderedKeys.has(sig)) {
+    return false;
+  }
+
+  // Register keys
+  if (m.id) renderedKeys.add(`id_${m.id}`);
+  renderedKeys.add(sig);
+
+  return true;
+}
+
+const MAX_IMAGE_BYTES = 1024 * 1024;
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -154,6 +198,7 @@ fileInput.addEventListener("change", async () => {
     showLoading(false);
   }
 });
+
 removeImgBtn.addEventListener("click", () => {
   pendingImage = null;
   fileInput.value = "";
@@ -164,6 +209,7 @@ textInput.addEventListener("input", () => {
   textInput.style.height = "auto";
   textInput.style.height = Math.min(textInput.scrollHeight, 120) + "px";
 });
+
 textInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
@@ -192,7 +238,6 @@ async function sendMessage() {
       pendingImage = null;
       fileInput.value = "";
       imgPreviewWrap.style.display = "none";
-      await poll();
     }
   } catch (err) {
     showError("Bağlantı hatası: " + err.message);
@@ -246,11 +291,13 @@ function openLightbox(src) {
   lightbox.classList.add("show");
   resetZoom();
 }
+
 function closeLightbox() {
   lightbox.classList.remove("show");
   lightboxImg.src = "";
   resetZoom();
 }
+
 lightboxClose.addEventListener("click", closeLightbox);
 lightbox.addEventListener("click", (e) => {
   if (e.target === lightbox) closeLightbox();
@@ -283,12 +330,14 @@ lightboxImg.addEventListener("mousedown", (e) => {
   panStartY = panY;
   e.preventDefault();
 });
+
 window.addEventListener("mousemove", (e) => {
   if (!isDragging) return;
   panX = panStartX + (e.clientX - dragStartX);
   panY = panStartY + (e.clientY - dragStartY);
   applyTransform();
 });
+
 window.addEventListener("mouseup", () => {
   isDragging = false;
   lightboxImg.classList.remove("dragging");
@@ -310,6 +359,7 @@ lightboxImg.addEventListener("touchstart", (e) => {
     panStartY = panY;
   }
 }, { passive: true });
+
 lightboxImg.addEventListener("touchmove", (e) => {
   if (e.touches.length === 2 && touchStartDist !== null) {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -322,6 +372,7 @@ lightboxImg.addEventListener("touchmove", (e) => {
     applyTransform();
   }
 }, { passive: true });
+
 lightboxImg.addEventListener("touchend", () => {
   isDragging = false;
   touchStartDist = null;
@@ -362,7 +413,7 @@ function renderMessage(m) {
     downloadBtn.className = "downloadBtn";
     downloadBtn.textContent = "⬇️ İndir";
     downloadBtn.addEventListener("click", () => {
-      downloadImage(m.image, `image_${m.id}.png`);
+      downloadImage(m.image, `image_${m.id || Date.now()}.png`);
     });
     imgContainer.appendChild(downloadBtn);
     
@@ -389,8 +440,9 @@ async function loadInitial() {
     const data = await res.json();
     if (res.ok) {
       (data.messages || []).forEach((m) => {
-        renderMessage(m);
-        lastId = Math.max(lastId, m.id);
+        if (shouldRender(m)) {
+          renderMessage(m);
+        }
       });
       scrollToBottom();
       statusLabel.textContent = "bağlı";
@@ -399,33 +451,5 @@ async function loadInitial() {
     }
   } catch (err) {
     statusLabel.textContent = "bağlantı yok";
-  }
-}
-
-let isPolling = false;
-
-async function poll() {
-  if (isPolling) return;
-  isPolling = true;
-  try {
-    const res = await fetch(BACKEND_URL + "/api/messages?after=" + lastId);
-    const data = await res.json();
-    if (res.ok) {
-      const newMsgs = data.messages || [];
-      if (newMsgs.length) {
-        newMsgs.forEach((m) => {
-          renderMessage(m);
-          lastId = Math.max(lastId, m.id);
-        });
-        scrollToBottom();
-      }
-      statusLabel.textContent = "bağlı";
-    } else {
-      statusLabel.textContent = "hata";
-    }
-  } catch (err) {
-    statusLabel.textContent = "bağlantı yok";
-  } finally {
-    isPolling = false;
   }
 }
