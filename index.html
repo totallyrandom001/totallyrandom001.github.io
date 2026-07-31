@@ -86,15 +86,15 @@
   #adminControls {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
-#soundToggle {
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  user-select: none;
-  vertical-align: middle;
-}
+  #soundToggle {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    user-select: none;
+    vertical-align: middle;
+  }
   #deletePassInput {
     display: none;
     width: 90px;
@@ -137,6 +137,23 @@
   .msg { max-width: 75%; display: flex; flex-direction: column; }
   .msg.me { align-self: flex-end; align-items: flex-end; }
   .msg.other { align-self: flex-start; align-items: flex-start; }
+  
+  /* Stacked message tight spacing */
+  .msg.stacked { margin-top: -6px; }
+
+  /* 30% larger username header & timestamp (11px -> 14px) */
+  .msg-author {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0 6px 3px;
+    font-weight: 600;
+  }
+  .meta { 
+    font-size: 14px; 
+    color: var(--muted); 
+    margin: 3px 6px 0; 
+  }
+
   .bubble {
     padding: 10px 14px;
     border-radius: 14px;
@@ -147,7 +164,7 @@
   }
   .msg.me .bubble { background: var(--bubble-me); color: white; border-bottom-right-radius: 4px; }
   .msg.other .bubble { background: var(--bubble-other); color: var(--text); border-bottom-left-radius: 4px; }
-  .meta { font-size: 11px; color: var(--muted); margin: 3px 6px 0; }
+  
   .bubble img { max-width: 260px; max-height: 260px; border-radius: 10px; display: block; margin-top: 6px; cursor: pointer; }
   .bubble a { color: #4a9eff; text-decoration: underline; cursor: pointer; }
   .msg.me .bubble a { color: #b3d9ff; }
@@ -194,14 +211,10 @@
   #fileInput { display: none; }
   #errBox { color: #ff7a7a; font-size: 12px; padding: 0 12px 8px; display: none; }
 
-  /* --- Loading overlay --- */
   #loadingOverlay {
     display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0, 0, 0, 0.7);
     z-index: 999;
     flex-direction: column;
@@ -209,9 +222,7 @@
     justify-content: center;
     gap: 16px;
   }
-  #loadingOverlay.show {
-    display: flex;
-  }
+  #loadingOverlay.show { display: flex; }
   .spinner {
     width: 40px;
     height: 40px;
@@ -220,15 +231,9 @@
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  .loadingText {
-    color: white;
-    font-size: 14px;
-  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loadingText { color: white; font-size: 14px; }
 
-  /* --- Lightbox --- */
   #lightbox {
     display: none;
     position: fixed;
@@ -244,8 +249,7 @@
   #lightbox img {
     max-width: 100%;
     max-height: 100%;
-    width: auto;
-    height: auto;
+    width: auto; height: auto;
     object-fit: contain;
     display: block;
     transition: transform 0.05s linear;
@@ -269,23 +273,18 @@
     border: 1px solid rgba(255,255,255,0.25);
     color: white;
     font-size: 18px;
-    width: 40px;
-    height: 40px;
+    width: 40px; height: 40px;
     border-radius: 50%;
     cursor: pointer;
   }
   #lightboxControls button:hover { background: rgba(255,255,255,0.22); }
   #lightboxClose {
     position: fixed;
-    top: 16px;
-    left: 16px;
-    background: none;
-    border: none;
+    top: 16px; left: 16px;
+    background: none; border: none;
     color: #ff3b3b;
-    font-size: 34px;
-    line-height: 1;
-    cursor: pointer;
-    z-index: 1201;
+    font-size: 34px; line-height: 1;
+    cursor: pointer; z-index: 1201;
     font-weight: bold;
   }
   .bubble img { cursor: zoom-in; }
@@ -316,7 +315,7 @@
       </div>
     </header>
     <div class="warning">
-      ⚠️ Uyarı: Lütfen sekmeyi kapatmayın.
+      ⚠️ Uyarı: Lütfen bu sekmeyi konuşmazken açık tutmayınız. Fotoğraflar otomatik olarak ~1MB'a sıkıştırılır. Fotoğraf yollarken donmuş gibi olabilir, lütfen sabırlı olunuz.
     </div>
     <div id="messages"></div>
     <div id="imgPreviewWrap">
@@ -346,6 +345,7 @@
       <button id="zoomInBtn" title="Yakınlaştır">+</button>
     </div>
   </div>
-<script src="index.js?v=6"></script>
+
+<script src="index.js?v=8"></script>
 </body>
 </html>
