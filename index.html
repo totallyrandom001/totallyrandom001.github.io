@@ -3,87 +3,78 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Discord-Style Platform</title>
+  <title>Aura Chat Platform</title>
   <style>
     :root {
-      --bg-primary: #313338;
-      --bg-secondary: #2b2d31;
-      --bg-tertiary: #1e1f22;
-      --text-normal: #dbdee1;
-      --text-muted: #949ba4;
-      --accent: #5865f2;
-      --accent-hover: #4752c4;
-      --danger: #da373c;
-      --success: #23a55a;
+      --bg-main: #0f172a;
+      --bg-sidebar: #1e293b;
+      --bg-card: #334155;
+      --accent: #0d9488;
+      --accent-hover: #14b8a6;
+      --text-bright: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #10b981;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'gg sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-    body { background-color: var(--bg-tertiary); color: var(--text-normal); height: 100vh; overflow: hidden; }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: var(--bg-main); color: var(--text-bright); height: 100vh; overflow: hidden; }
     .hidden { display: none !important; }
 
-    /* Layout Containers */
+    /* Layout Structure (Removed Discord Server Bar) */
     #app-container { display: flex; width: 100vw; height: 100vh; }
+
+    /* Single Modern Sidebar */
+    .sidebar { width: 300px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; }
+    .user-profile-card { padding: 16px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
+    .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; border: 2px solid var(--accent); }
+
+    .nav-tabs { display: flex; background: #0f172a; padding: 4px; margin: 8px; border-radius: 8px; }
+    .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-muted); font-weight: bold; cursor: pointer; border-radius: 6px; }
+    .tab-btn.active { background: var(--accent); color: white; }
+
+    .list-container { flex: 1; overflow-y: auto; padding: 8px 12px; }
+    .list-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; transition: 0.2s; }
+    .list-item:hover { background: var(--bg-card); }
+    .list-item.active { background: var(--accent); }
+
+    /* Workspace / Main View */
+    .workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); }
+    .header-bar { height: 60px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--bg-sidebar); }
+
+    .content-panel { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* Message Group Styling */
+    .message-group { background: var(--bg-sidebar); border-radius: 12px; padding: 12px 16px; border: 1px solid #334155; display: flex; flex-direction: column; max-width: 80%; width: fit-content; }
+    .message-group.self { align-self: flex-end; background: #134e4a; border-color: #0d9488; }
+    .group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 6px; }
+    .group-header .sender-name { font-weight: bold; font-size: 14px; color: var(--accent-hover); }
+    .message-group.self .group-header .sender-name { color: #5eead4; }
+    .group-lines { display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+    .group-timestamp { font-size: 11px; color: var(--text-muted); align-self: flex-end; margin-top: 6px; }
+
+    /* Chat Input Bar */
+    .chat-input-container { padding: 16px 24px; background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; gap: 12px; }
+    .chat-input-container input { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px 16px; border-radius: 8px; color: white; outline: none; }
     
-    /* 1. Leftmost Icon Sidebar */
-    .guilds-sidebar { width: 72px; background: var(--bg-tertiary); display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 8px; border-right: 1px solid #111214; }
-    .guild-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-normal); font-weight: bold; transition: 0.2s; }
-    .guild-icon:hover { border-radius: 16px; background: var(--accent); }
-
-    /* 2. Channels / DMs Sidebar */
-    .channels-sidebar { width: 240px; background: var(--bg-secondary); display: flex; flex-direction: column; }
-    .sidebar-header { height: 48px; border-bottom: 1px solid #1f2023; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-weight: bold; }
-    .sidebar-content { flex: 1; overflow-y: auto; padding: 12px 8px; }
-    .section-title { font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin: 12px 8px 4px; }
-    
-    .nav-item { padding: 8px 12px; border-radius: 4px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-    .nav-item:hover, .nav-item.active { background: #35373c; color: var(--text-normal); }
-
-    /* User Controls Footer (Left Side) */
-    .user-footer { height: 52px; background: #232428; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
-    .user-info { display: flex; align-items: center; gap: 8px; }
-    .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; }
-    .settings-btn { cursor: pointer; padding: 6px; border-radius: 4px; }
-    .settings-btn:hover { background: #35373c; }
-
-    /* 3. Main Chat View */
-    .main-chat { flex: 1; background: var(--bg-primary); display: flex; flex-direction: column; }
-    .chat-header { height: 48px; border-bottom: 1px solid #26282c; display: flex; align-items: center; padding: 0 16px; font-weight: bold; font-size: 16px; }
-    .messages-container { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .message-card { display: flex; gap: 12px; }
-    .message-content { display: flex; flex-direction: column; }
-    .message-sender { font-weight: bold; font-size: 14px; margin-bottom: 2px; }
-    .message-text { color: #dbdee1; font-size: 15px; }
-
-    .chat-input-area { padding: 0 16px 24px; }
-    .chat-input-area input { width: 100%; background: #383a40; border: none; padding: 12px 16px; border-radius: 8px; color: white; outline: none; }
-
-    /* Modals & Full Overlays (Left Settings View) */
-    .modal-overlay { position: fixed; inset: 0; background: var(--bg-primary); display: flex; z-index: 100; }
-    .settings-sidebar { width: 240px; background: var(--bg-secondary); padding: 60px 20px 20px; display: flex; flex-direction: column; gap: 6px; }
-    .settings-content { flex: 1; padding: 60px 40px; overflow-y: auto; max-width: 700px; }
-    
-    input[type="text"], input[type="password"] { background: #1e1f22; border: 1px solid #111214; padding: 10px; border-radius: 4px; color: white; width: 100%; margin-bottom: 12px; }
-    button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    /* Buttons & Inputs */
+    input[type="text"], input[type="password"] { background: #0f172a; border: 1px solid #334155; padding: 10px; border-radius: 6px; color: white; width: 100%; margin-bottom: 12px; }
+    button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     button:hover { background: var(--accent-hover); }
     button.danger { background: var(--danger); }
 
-    /* Auth View */
-    #auth-view { position: fixed; inset: 0; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; z-index: 200; }
-    .auth-card { background: var(--bg-primary); padding: 32px; border-radius: 8px; width: 400px; }
-    
-    /* Decibel Slider Custom Rules */
-    .disclaimer-box { background: #2b2d31; border-left: 4px solid #f0b232; padding: 12px; margin: 16px 0; font-size: 13px; color: #f0b232; }
-    .slider-group { margin: 16px 0; }
+    /* Auth & Settings Overlays */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; z-index: 100; align-items: center; justify-content: center; }
+    .modal-card { background: var(--bg-sidebar); padding: 32px; border-radius: 12px; width: 420px; border: 1px solid #334155; }
   </style>
 </head>
 <body>
 
   <audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
 
-  <div id="auth-view">
-    <div class="auth-card">
-      <h2 style="margin-bottom: 16px; text-align: center;">Welcome Back!</h2>
+  <div id="auth-view" class="modal-overlay">
+    <div class="modal-card">
+      <h2 style="margin-bottom: 16px; text-align: center;">Aura Chat</h2>
       <input type="text" id="username" placeholder="Username (letters only)">
       <input type="password" id="password" placeholder="Password">
       <button onclick="login()" style="width: 100%; margin-bottom: 8px;">Log In</button>
@@ -94,122 +85,102 @@
 
   <div id="app-container" class="hidden">
     
-    <div class="guilds-sidebar">
-      <div class="guild-icon" onclick="switchTab('friends')">DM</div>
-      <div style="width: 32px; height: 2px; background: #35373c;"></div>
-      <div id="guild-icons-list"></div>
+    <div class="sidebar">
+      <div class="user-profile-card">
+        <div id="user-avatar-container"></div>
+        <div style="flex:1;">
+          <div id="user-display-name" style="font-weight: bold;"></div>
+          <div id="user-role-tag" style="font-size: 11px; color: var(--text-muted);"></div>
+        </div>
+        <button onclick="toggleSettings(true)" style="padding: 6px 10px;">⚙️</button>
+      </div>
+
+      <div class="nav-tabs">
+        <button class="tab-btn active" id="tab-btn-friends" onclick="switchNavTab('friends')">Friends</button>
+        <button class="tab-btn" id="tab-btn-groups" onclick="switchNavTab('groups')">Groups</button>
+      </div>
+
+      <div class="list-container">
+        <div id="friends-nav-list"></div>
+        <div id="groups-nav-list" class="hidden"></div>
+      </div>
     </div>
 
-    <div class="channels-sidebar">
-      <div class="sidebar-header">
-        <span id="sidebar-title">Direct Messages</span>
-      </div>
-      
-      <div class="sidebar-content">
-        <div id="friends-nav">
-          <div class="nav-item" onclick="showFriendsView()">👥 Friends</div>
-          <div class="section-title">Direct Messages</div>
-          <div id="dm-list"></div>
-        </div>
-
-        <div id="groups-nav">
-          <div class="section-title">Groups</div>
-          <div id="groups-list"></div>
-        </div>
+    <div class="workspace">
+      <div class="header-bar">
+        <h3 id="active-title">Dashboard</h3>
       </div>
 
-      <div class="user-footer">
-        <div class="user-info">
-          <div class="avatar" id="user-avatar">U</div>
-          <div>
-            <div id="user-display-name" style="font-size: 14px; font-weight: bold;"></div>
-            <div id="user-role-tag" style="font-size: 10px; color: var(--text-muted);"></div>
+      <div id="dashboard-panel" class="content-panel">
+        <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
+          <h4>Send Friend Request</h4>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <input type="text" id="friend-target-input" placeholder="Enter username" style="margin: 0;">
+            <button onclick="sendFriendRequest()">Send</button>
           </div>
         </div>
-        <div class="settings-btn" onclick="toggleSettings(true)">⚙️</div>
-      </div>
-    </div>
 
-    <div class="main-chat">
-      <div class="chat-header" id="chat-header">Select a Friend or Group</div>
-      
-      <div id="friends-main-view" class="messages-container">
-        <h3>Add Friend by Username</h3>
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <input type="text" id="friend-target-input" placeholder="Enter a username">
-          <button onclick="addFriend()">Send Request</button>
+        <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
+          <h4>Pending Friend Requests</h4>
+          <div id="pending-friends-list" style="margin-top: 8px;"></div>
         </div>
 
-        <h3 style="margin-top: 24px;">Create Group</h3>
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <input type="text" id="new-group-name" placeholder="Group Name">
-          <button onclick="createGroup()">Create</button>
+        <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
+          <h4>Create Group</h4>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <input type="text" id="new-group-name" placeholder="Group Name" style="margin: 0;">
+            <button onclick="createGroup()">Create</button>
+          </div>
         </div>
 
-        <h3 style="margin-top: 24px;">Add User to Active Group</h3>
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <input type="text" id="add-member-username" placeholder="Username to add">
-          <button onclick="addMemberToGroup()">Add User</button>
+        <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
+          <h4>Add Member to Group</h4>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <input type="text" id="group-add-user" placeholder="Target Username" style="margin: 0;">
+            <button onclick="addMemberToGroup()">Add Member</button>
+          </div>
         </div>
-
-        <p id="friends-action-msg" style="margin-top: 12px; font-size: 14px;"></p>
+        <p id="dashboard-status-msg" style="color: var(--accent-hover); font-size: 14px;"></p>
       </div>
 
-      <div id="chat-messages-view" class="messages-container hidden"></div>
+      <div id="chat-messages-panel" class="content-panel hidden"></div>
 
-      <div class="chat-input-area hidden" id="chat-input-wrapper">
-        <input type="text" id="message-input" placeholder="Message..." onkeydown="handleKeyPress(event)">
+      <div id="chat-input-area" class="chat-input-container hidden">
+        <input type="text" id="message-input" placeholder="Type a message..." onkeydown="handleKeyPress(event)">
+        <button onclick="sendMessage()">Send</button>
       </div>
     </div>
   </div>
 
   <div id="settings-modal" class="modal-overlay hidden">
-    <div class="settings-sidebar">
-      <div class="section-title">User Settings</div>
-      <div class="nav-item active" onclick="showSettingsTab('account')">My Account</div>
-      <div class="nav-item" onclick="showSettingsTab('voice')">Voice & Sound</div>
-      <div class="nav-item danger" onclick="logout()">Log Out</div>
-    </div>
+    <div class="modal-card" style="width: 500px;">
+      <h3>User Settings</h3>
+      <hr style="border-color: #334155; margin: 12px 0;">
 
-    <div class="settings-content">
-      <button style="float: right;" onclick="toggleSettings(false)">✕ Escalation</button>
+      <h4>Upload Profile Picture (Auto Compress &le; 512KB)</h4>
+      <input type="file" id="pfp-file-input" accept="image/*" style="margin: 12px 0;">
+      <button onclick="processAndUploadPFP()" style="margin-bottom: 16px;">Upload Photo</button>
 
-      <div id="tab-account">
-        <h2>My Account</h2>
-        <br>
-        <p><strong>Username:</strong> <span id="settings-user"></span></p>
-        <p><strong>Account Role:</strong> <span id="settings-role"></span></p>
-        
-        <div id="admin-panel" class="hidden" style="margin-top: 32px;">
-          <h3 style="color: var(--danger);">Admin Panel</h3>
-          <br>
-          <h4>Pending User Requests</h4>
-          <div id="admin-pending-list" style="margin: 12px 0;"></div>
+      <h4>Notification Sound Gain</h4>
+      <p style="font-size: 12px; color: #f0b232; margin: 4px 0 8px;">⚠️ Lockout Rule: Volume changes lock for 24 hours after applying!</p>
+      <input type="range" id="volume-db-slider" min="-30" max="12" value="0" step="1" oninput="document.getElementById('db-val').innerText=this.value">
+      <span id="db-val">0</span> dB
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button onclick="previewAudio()">Preview</button>
+        <button id="apply-vol-btn" onclick="applyVolumeLock()" style="background: var(--success);">Apply (Lock 24h)</button>
+      </div>
+      <p id="lock-msg" style="color: var(--danger); font-size: 12px; margin-top: 4px;"></p>
 
-          <h4 style="margin-top: 16px;">Delete User Account</h4>
-          <input type="text" id="admin-delete-user" placeholder="Username to delete">
-          <button class="danger" onclick="adminDeleteUser()">Delete Account</button>
-        </div>
+      <div id="admin-section" class="hidden" style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 12px;">
+        <h4 style="color: var(--danger);">Admin Controls</h4>
+        <div id="admin-pending-accounts" style="margin: 8px 0;"></div>
+        <input type="text" id="delete-username-input" placeholder="Target Username to Delete">
+        <button class="danger" onclick="adminDeleteUser()">Delete Account</button>
       </div>
 
-      <div id="tab-voice" class="hidden">
-        <h2>Notification Sound Settings</h2>
-        
-        <div class="disclaimer-box">
-          ⚠️ <strong>DISCLAIMER:</strong> Once you click "Apply", your volume settings will be strictly <strong>LOCKED for 24 hours</strong> and cannot be altered until the countdown expires.
-        </div>
-
-        <div class="slider-group">
-          <label>Volume Gain: <strong><span id="db-value">0</span> dB</strong></label>
-          <input type="range" id="volume-db-slider" min="-30" max="12" value="0" step="1" oninput="updateDbDisplay(this.value)">
-        </div>
-
-        <div style="display: flex; gap: 12px;">
-          <button onclick="previewSound()">🔊 Preview Sound</button>
-          <button id="apply-vol-btn" onclick="applyVolumeLock()" style="background: var(--success);">Apply (Lock 24 Hours)</button>
-        </div>
-
-        <p id="lock-status-msg" style="margin-top: 16px; font-weight: bold; color: var(--danger);"></p>
+      <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+        <button class="danger" onclick="logout()">Logout</button>
+        <button onclick="toggleSettings(false)">Close</button>
       </div>
     </div>
   </div>
@@ -219,98 +190,145 @@
     let token = localStorage.getItem("token") || "";
     let currentUser = localStorage.getItem("username") || "";
     let currentRole = localStorage.getItem("role") || "";
+    let currentUserPfp = localStorage.getItem("pfp") || "";
     let activeGroupToken = "";
+    let audioCtx, gainNode;
 
-    // Web Audio API Context setup for precise dB Gain adjustment
-    let audioCtx, gainNode, audioSource;
+    // --- Image Compression Engine (Max 512KB Base64 Output) ---
+    function processAndUploadPFP() {
+      const fileInput = document.getElementById("pfp-file-input");
+      if (!fileInput.files.length) return alert("Select an image first!");
+      const file = fileInput.files[0];
 
-    function initAudioEngine() {
-      const audioElement = document.getElementById("notify-audio");
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 300; // Resize boundaries
+
+          if (width > height) {
+            if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+          } else {
+            if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let quality = 0.85;
+          let base64 = canvas.toDataURL("image/jpeg", quality);
+
+          // Iteratively reduce quality until payload is strictly <= 512KB
+          while (base64.length > 512 * 1024 && quality > 0.1) {
+            quality -= 0.1;
+            base64 = canvas.toDataURL("image/jpeg", quality);
+          }
+
+          if (base64.length > 512 * 1024) {
+            return alert("Image is too large even after compression!");
+          }
+
+          uploadPFP(base64);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function uploadPFP(base64) {
+      const res = await fetch(`${BACKEND}/api/user/pfp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ pfpBase64: base64 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        currentUserPfp = base64;
+        localStorage.setItem("pfp", base64);
+        renderUserAvatar(currentUser, base64);
+        alert("Profile picture uploaded!");
+      } else {
+        alert(data.error);
+      }
+    }
+
+    function renderUserAvatar(username, pfpUrl, containerId = "user-avatar-container") {
+      const container = document.getElementById(containerId);
+      if (pfpUrl) {
+        container.innerHTML = `<img src="${pfpUrl}" class="avatar-img">`;
+      } else {
+        container.innerHTML = `<div class="avatar-img">${username[0].toUpperCase()}</div>`;
+      }
+    }
+
+    // --- Audio System ---
+    function initAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         gainNode = audioCtx.createGain();
-        audioSource = audioCtx.createMediaElementSource(audioElement);
-        audioSource.connect(gainNode);
+        const audioEl = document.getElementById("notify-audio");
+        const src = audioCtx.createMediaElementSource(audioEl);
+        src.connect(gainNode);
         gainNode.connect(audioCtx.destination);
       }
-      setGainFromDb(getSavedDb());
+      setGain(parseFloat(localStorage.getItem("sound_db") || "0"));
     }
 
-    function getSavedDb() {
-      return parseFloat(localStorage.getItem("sound_db") || "0");
-    }
-
-    function setGainFromDb(db) {
+    function setGain(db) {
       if (!gainNode) return;
-      // Formula: Gain = 10 ^ (dB / 20)
-      const gainValue = Math.pow(10, db / 20);
-      gainNode.gain.setValueAtTime(gainValue, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(Math.pow(10, db / 20), audioCtx.currentTime);
     }
 
-    function playNotificationSound() {
-      // Plays sound ONLY if window is not focused
+    function playNotification() {
       if (!document.hasFocus()) {
         const audio = document.getElementById("notify-audio");
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         audio.currentTime = 0;
-        audio.play().catch(e => console.log("Audio play blocked by browser:", e));
+        audio.play().catch(() => {});
       }
-    }
-
-    // --- Sound Settings Lock Out Mechanics ---
-    function checkVolumeLock() {
-      const lockedUntil = localStorage.getItem("vol_locked_until");
-      const slider = document.getElementById("volume-db-slider");
-      const applyBtn = document.getElementById("apply-vol-btn");
-      const msg = document.getElementById("lock-status-msg");
-
-      if (lockedUntil && Date.now() < parseInt(lockedUntil)) {
-        slider.disabled = true;
-        applyBtn.disabled = true;
-        const remainingHours = ((parseInt(lockedUntil) - Date.now()) / (1000 * 60 * 60)).toFixed(1);
-        msg.innerText = `Settings locked! You cannot alter sound volume for another ${remainingHours} hours.`;
-      } else {
-        slider.disabled = false;
-        applyBtn.disabled = false;
-        msg.innerText = "";
-      }
-    }
-
-    function updateDbDisplay(val) {
-      document.getElementById("db-value").innerText = val;
-    }
-
-    function previewSound() {
-      initAudioEngine();
-      const db = parseFloat(document.getElementById("volume-db-slider").value);
-      setGainFromDb(db);
-      
-      const audio = document.getElementById("notify-audio");
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      audio.currentTime = 0;
-      audio.play();
     }
 
     function applyVolumeLock() {
       const db = parseFloat(document.getElementById("volume-db-slider").value);
       localStorage.setItem("sound_db", db);
-      
-      // Lock for 24 Hours
-      const lockTimestamp = Date.now() + (24 * 60 * 60 * 1000);
-      localStorage.setItem("vol_locked_until", lockTimestamp);
+      localStorage.setItem("vol_lock", Date.now() + (24 * 60 * 60 * 1000));
+      setGain(db);
+      checkLockStatus();
+    }
 
-      setGainFromDb(db);
-      checkVolumeLock();
-      alert("Volume set and locked for 24 hours!");
+    function checkLockStatus() {
+      const lock = localStorage.getItem("vol_lock");
+      const slider = document.getElementById("volume-db-slider");
+      const btn = document.getElementById("apply-vol-btn");
+      if (lock && Date.now() < parseInt(lock)) {
+        slider.disabled = true;
+        btn.disabled = true;
+        const remaining = ((parseInt(lock) - Date.now()) / (1000 * 60 * 60)).toFixed(1);
+        document.getElementById("lock-msg").innerText = `Locked for ${remaining} more hours.`;
+      } else {
+        slider.disabled = false;
+        btn.disabled = false;
+        document.getElementById("lock-msg").innerText = "";
+      }
+    }
+
+    function previewAudio() {
+      initAudio();
+      setGain(parseFloat(document.getElementById("volume-db-slider").value));
+      const audio = document.getElementById("notify-audio");
+      audio.currentTime = 0;
+      audio.play();
     }
 
     // --- Authentication ---
     async function login() {
       let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
       let p = document.getElementById("password").value;
-
       const res = await fetch(`${BACKEND}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -318,12 +336,11 @@
       });
       const data = await res.json();
       if (res.ok) {
-        token = data.token;
-        currentUser = data.username;
-        currentRole = data.role;
+        token = data.token; currentUser = data.username; currentRole = data.role; currentUserPfp = data.pfp || "";
         localStorage.setItem("token", token);
         localStorage.setItem("username", currentUser);
         localStorage.setItem("role", currentRole);
+        localStorage.setItem("pfp", currentUserPfp);
         location.reload();
       } else {
         document.getElementById("auth-msg").innerText = data.error;
@@ -333,7 +350,6 @@
     async function register() {
       let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
       let p = document.getElementById("password").value;
-
       const res = await fetch(`${BACKEND}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -343,78 +359,163 @@
       document.getElementById("auth-msg").innerText = data.message || data.error;
     }
 
-    function logout() {
-      localStorage.clear();
-      location.reload();
-    }
+    function logout() { localStorage.clear(); location.reload(); }
 
-    // --- Real-time Streaming (I-Frame & P-Frame SSE) ---
-    function startEventStream() {
-      const eventSource = new EventSource(`${BACKEND}/api/stream?token=${token}`);
-
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        // I-FRAME: Full Snapshot on Connect
+    // --- Real-Time SSE Stream ---
+    function startStream() {
+      const es = new EventSource(`${BACKEND}/api/stream?token=${token}`);
+      es.onmessage = (e) => {
+        const data = JSON.parse(e.data);
         if (data.frameType === "I-FRAME") {
-          renderGroupsList(data.groups);
-          renderFriendsList(data.friends);
-        }
-
-        // P-FRAME: Delta Updates
-        if (data.frameType === "P-FRAME") {
+          renderFriends(data.friends);
+          renderGroups(data.groups);
+        } else if (data.frameType === "P-FRAME") {
           if (data.type === "NEW_MESSAGE") {
             if (data.payload.group_token === activeGroupToken) {
-              appendMessageCard(data.payload);
+              loadMessages(activeGroupToken);
             }
-            if (data.payload.sender !== currentUser) {
-              playNotificationSound();
-            }
-          } else if (data.type === "FRIEND_ADDED" || data.type === "GROUP_CREATED") {
-            // Refresh list dynamically
-            fetchInitialState();
+            if (data.payload.sender !== currentUser) playNotification();
+          } else if (data.type.startsWith("FRIEND_") || data.type.startsWith("GROUP_")) {
+            refreshLists();
           }
         }
       };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setTimeout(startEventStream, 3000); // Auto-reconnect
-      };
     }
 
-    async function fetchInitialState() {
-      const res = await fetch(`${BACKEND}/api/groups`, { headers: { "Authorization": token } });
-      const groups = await res.json();
-      renderGroupsList(groups);
+    async function refreshLists() {
+      const res = await fetch(`${BACKEND}/api/stream?token=${token}`);
+      // Re-fetch fallback
     }
 
-    function renderGroupsList(groups) {
-      const list = document.getElementById("groups-list");
+    function renderFriends(friends) {
+      const list = document.getElementById("friends-nav-list");
+      const pendingList = document.getElementById("pending-friends-list");
+      list.innerHTML = ""; pendingList.innerHTML = "";
+
+      friends.forEach(f => {
+        const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
+        if (f.status === "accepted") {
+          const item = document.createElement("div");
+          item.className = "list-item";
+          item.innerHTML = `
+            <div style="width: 28px; height: 28px;">${f.pfp ? `<img src="${f.pfp}" class="avatar-img" style="width:28px;height:28px;">` : `<div class="avatar-img" style="width:28px;height:28px;font-size:12px;">${otherUser[0].toUpperCase()}</div>`}</div>
+            <span>@${otherUser}</span>
+          `;
+          item.onclick = () => openDM(otherUser);
+          list.appendChild(item);
+        } else if (f.status === "pending" && f.user2 === currentUser) {
+          const pItem = document.createElement("div");
+          pItem.style.margin = "4px 0";
+          pItem.innerHTML = `@${f.user1} <button onclick="acceptFriend('${f.user1}')" style="padding:4px 8px; font-size:12px;">Accept</button>`;
+          pendingList.appendChild(pItem);
+        }
+      });
+    }
+
+    function renderGroups(groups) {
+      const list = document.getElementById("groups-nav-list");
       list.innerHTML = "";
       groups.forEach(g => {
+        if (g.group_name.startsWith("@")) return;
         const item = document.createElement("div");
-        item.className = "nav-item";
+        item.className = "list-item";
         item.innerText = `# ${g.group_name}`;
         item.onclick = () => selectGroup(g.group_token, g.group_name);
         list.appendChild(item);
       });
     }
 
-    function renderFriendsList(friends) {
-      const list = document.getElementById("dm-list");
-      list.innerHTML = "";
-      friends.forEach(f => {
-        const friendUser = f.user1 === currentUser ? f.user2 : f.user1;
-        const item = document.createElement("div");
-        item.className = "nav-item";
-        item.innerText = `@ ${friendUser}`;
-        item.onclick = () => openDM(friendUser);
-        list.appendChild(item);
+    // --- Message Grouping Engine (5-Minute Window) ---
+    async function loadMessages(groupToken) {
+      const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
+      const msgs = await res.json();
+      const container = document.getElementById("chat-messages-panel");
+      container.innerHTML = "";
+
+      let currentGroup = null;
+
+      msgs.forEach(msg => {
+        const isSelf = msg.sender === currentUser;
+        const msgTime = msg.created_at;
+
+        // Check if message belongs to the existing consecutive block (within 5 minutes)
+        if (
+          currentGroup &&
+          currentGroup.sender === msg.sender &&
+          (msgTime - currentGroup.lastTimestamp) <= (5 * 60 * 1000)
+        ) {
+          // Append line to existing block
+          const line = document.createElement("div");
+          line.innerText = msg.content;
+          currentGroup.linesElement.appendChild(line);
+          currentGroup.lastTimestamp = msgTime;
+          currentGroup.timeElement.innerText = new Date(msgTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+          // Create new Message Group Card
+          const groupCard = document.createElement("div");
+          groupCard.className = `message-group ${isSelf ? 'self' : ''}`;
+
+          const header = document.createElement("div");
+          header.className = "group-header";
+          header.innerHTML = `
+            <div style="width:24px;height:24px;">
+              ${msg.pfp ? `<img src="${msg.pfp}" class="avatar-img" style="width:24px;height:24px;">` : `<div class="avatar-img" style="width:24px;height:24px;font-size:11px;">${msg.sender[0].toUpperCase()}</div>`}
+            </div>
+            <span class="sender-name">${msg.sender}</span>
+          `;
+
+          const linesContainer = document.createElement("div");
+          linesContainer.className = "group-lines";
+          const firstLine = document.createElement("div");
+          firstLine.innerText = msg.content;
+          linesContainer.appendChild(firstLine);
+
+          const timeStamp = document.createElement("div");
+          timeStamp.className = "group-timestamp";
+          timeStamp.innerText = new Date(msgTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          groupCard.appendChild(header);
+          groupCard.appendChild(linesContainer);
+          groupCard.appendChild(timeStamp);
+          container.appendChild(groupCard);
+
+          currentGroup = {
+            sender: msg.sender,
+            lastTimestamp: msgTime,
+            linesElement: linesContainer,
+            timeElement: timeStamp
+          };
+        }
       });
+      container.scrollTop = container.scrollHeight;
     }
 
-    // Actions
+    // Dynamic Navigation
+    function switchNavTab(tab) {
+      document.getElementById("tab-btn-friends").classList.toggle("active", tab === 'friends');
+      document.getElementById("tab-btn-groups").classList.toggle("active", tab === 'groups');
+      document.getElementById("friends-nav-list").classList.toggle("hidden", tab !== 'friends');
+      document.getElementById("groups-nav-list").classList.toggle("hidden", tab !== 'groups');
+
+      if (tab === 'friends') showDashboard();
+    }
+
+    function showDashboard() {
+      document.getElementById("active-title").innerText = "Friends & Activity Dashboard";
+      document.getElementById("dashboard-panel").classList.remove("hidden");
+      document.getElementById("chat-messages-panel").classList.add("hidden");
+      document.getElementById("chat-input-area").classList.add("hidden");
+    }
+
+    async function selectGroup(token, name) {
+      activeGroupToken = token;
+      document.getElementById("active-title").innerText = name;
+      document.getElementById("dashboard-panel").classList.add("hidden");
+      document.getElementById("chat-messages-panel").classList.remove("hidden");
+      document.getElementById("chat-input-area").classList.remove("hidden");
+      loadMessages(token);
+    }
+
     async function openDM(targetUser) {
       const res = await fetch(`${BACKEND}/api/dm/open`, {
         method: "POST",
@@ -422,18 +523,28 @@
         body: JSON.stringify({ targetUsername: targetUser })
       });
       const data = await res.json();
-      selectGroup(data.groupToken, `@${targetUser}`);
+      if (res.ok) selectGroup(data.groupToken, `@${targetUser}`);
+      else alert(data.error);
     }
 
-    async function addFriend() {
+    async function sendFriendRequest() {
       const target = document.getElementById("friend-target-input").value;
-      const res = await fetch(`${BACKEND}/api/friends/add`, {
+      const res = await fetch(`${BACKEND}/api/friends/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ targetUsername: target })
       });
       const data = await res.json();
-      document.getElementById("friends-action-msg").innerText = data.message || data.error;
+      document.getElementById("dashboard-status-msg").innerText = data.message || data.error;
+    }
+
+    async function acceptFriend(target) {
+      await fetch(`${BACKEND}/api/friends/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ targetUsername: target })
+      });
+      location.reload();
     }
 
     async function createGroup() {
@@ -443,58 +554,26 @@
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ groupName })
       });
-      document.getElementById("friends-action-msg").innerText = "Group created!";
+      document.getElementById("dashboard-status-msg").innerText = "Group created!";
     }
 
     async function addMemberToGroup() {
       if (!activeGroupToken) return alert("Select a group first!");
-      const targetUsername = document.getElementById("add-member-username").value;
+      const targetUsername = document.getElementById("group-add-user").value;
       const res = await fetch(`${BACKEND}/api/groups/add-member`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ groupToken: activeGroupToken, targetUsername })
       });
       const data = await res.json();
-      document.getElementById("friends-action-msg").innerText = data.message || data.error;
-    }
-
-    async function selectGroup(groupToken, name) {
-      activeGroupToken = groupToken;
-      document.getElementById("chat-header").innerText = name;
-      document.getElementById("friends-main-view").classList.add("hidden");
-      document.getElementById("chat-messages-view").classList.remove("hidden");
-      document.getElementById("chat-input-wrapper").classList.remove("hidden");
-      
-      // Fetch History
-      const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
-      const msgs = await res.json();
-      const container = document.getElementById("chat-messages-view");
-      container.innerHTML = "";
-      msgs.forEach(appendMessageCard);
-    }
-
-    function appendMessageCard(msg) {
-      const container = document.getElementById("chat-messages-view");
-      const card = document.createElement("div");
-      card.className = "message-card";
-      card.innerHTML = `
-        <div class="avatar">${msg.sender[0].toUpperCase()}</div>
-        <div class="message-content">
-          <div class="message-sender">${msg.sender}</div>
-          <div class="message-text">${msg.content}</div>
-        </div>
-      `;
-      container.appendChild(card);
-      container.scrollTop = container.scrollHeight;
+      document.getElementById("dashboard-status-msg").innerText = data.message || data.error;
     }
 
     async function sendMessage() {
       const input = document.getElementById("message-input");
       if (!input.value.trim() || !activeGroupToken) return;
-
       const content = input.value;
       input.value = "";
-
       await fetch(`${BACKEND}/api/messages/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
@@ -502,52 +581,27 @@
       });
     }
 
-    function handleKeyPress(e) {
-      if (e.key === "Enter") sendMessage();
-    }
+    function handleKeyPress(e) { if (e.key === "Enter") sendMessage(); }
 
-    function showFriendsView() {
-      document.getElementById("friends-main-view").classList.remove("hidden");
-      document.getElementById("chat-messages-view").classList.add("hidden");
-      document.getElementById("chat-input-wrapper").classList.add("hidden");
-      document.getElementById("chat-header").innerText = "Friends Dashboard";
-    }
-
-    // Modal & View Toggles
     function toggleSettings(show) {
-      const modal = document.getElementById("settings-modal");
+      document.getElementById("settings-modal").classList.toggle("hidden", !show);
       if (show) {
-        modal.classList.remove("hidden");
-        document.getElementById("settings-user").innerText = currentUser;
-        document.getElementById("settings-role").innerText = currentRole;
-        
-        const db = getSavedDb();
-        document.getElementById("volume-db-slider").value = db;
-        updateDbDisplay(db);
-        checkVolumeLock();
-
+        checkLockStatus();
         if (currentRole === "admin") {
-          document.getElementById("admin-panel").classList.remove("hidden");
+          document.getElementById("admin-section").classList.remove("hidden");
           loadAdminPending();
         }
-      } else {
-        modal.classList.add("hidden");
       }
-    }
-
-    function showSettingsTab(tab) {
-      document.getElementById("tab-account").classList.toggle("hidden", tab !== 'account');
-      document.getElementById("tab-voice").classList.toggle("hidden", tab !== 'voice');
     }
 
     async function loadAdminPending() {
       const res = await fetch(`${BACKEND}/api/admin/pending`, { headers: { "Authorization": token } });
       const pending = await res.json();
-      const list = document.getElementById("admin-pending-list");
+      const list = document.getElementById("admin-pending-accounts");
       list.innerHTML = "";
       pending.forEach(p => {
         const item = document.createElement("div");
-        item.style.margin = "8px 0";
+        item.style.margin = "4px 0";
         item.innerHTML = `${p.username} <button onclick="adminAction(${p.id}, 'approve')">Approve</button> <button class="danger" onclick="adminAction(${p.id}, 'deny')">Deny</button>`;
         list.appendChild(item);
       });
@@ -563,7 +617,7 @@
     }
 
     async function adminDeleteUser() {
-      const username = document.getElementById("admin-delete-user").value;
+      const username = document.getElementById("delete-username-input").value;
       await fetch(`${BACKEND}/api/admin/delete-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
@@ -572,17 +626,15 @@
       alert(`Deleted ${username}`);
     }
 
-    // Initialize App
     window.onload = () => {
       if (token) {
         document.getElementById("auth-view").classList.add("hidden");
         document.getElementById("app-container").classList.remove("hidden");
         document.getElementById("user-display-name").innerText = currentUser;
-        document.getElementById("user-avatar").innerText = currentUser[0].toUpperCase();
         document.getElementById("user-role-tag").innerText = currentRole;
-        
-        initAudioEngine();
-        startEventStream();
+        renderUserAvatar(currentUser, currentUserPfp);
+        initAudio();
+        startStream();
       }
     };
   </script>
