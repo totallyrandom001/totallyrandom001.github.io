@@ -5,13 +5,21 @@ let myName = "";
 let pendingImage = null; // base64 data URL
 const renderedKeys = new Set(); // Dual deduplication tracker (IDs + signatures)
 
+// Ses & Bildirim Ayarları
+let soundEnabled = true;
+let unreadCount = 0;
+const ORIGINAL_TITLE = document.title || "Sohbet";
+const notifyAudio = new Audio("notify.mp3");
+
 const nameScreen = document.getElementById("nameScreen");
 const chatScreen = document.getElementById("chatScreen");
 const nameInput = document.getElementById("nameInput");
 const joinBtn = document.getElementById("joinBtn");
 const whoLabel = document.getElementById("whoLabel");
 const statusLabel = document.getElementById("statusLabel");
+const soundToggle = document.getElementById("soundToggle");
 const deletePassInput = document.getElementById("deletePassInput");
+const deleteChk = document.getElementById("deleteChk");
 const deleteErrBox = document.getElementById("deleteErrBox");
 const messagesEl = document.getElementById("messages");
 const textInput = document.getElementById("textInput");
@@ -51,15 +59,33 @@ function showLoading(show = true) {
   }
 }
 
+// Sound Toggle Listener
+soundToggle.addEventListener("click", () => {
+  soundEnabled = !soundEnabled;
+  soundToggle.src = soundEnabled ? "soundon.png" : "soundoff.png";
+});
+
+// Clear unread count when user switches back to this tab
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    unreadCount = 0;
+    document.title = ORIGINAL_TITLE;
+  }
+});
+
 // Secret delete trigger on status click
 statusLabel.addEventListener("click", () => {
-  if (deletePassInput.style.display === "none" || !deletePassInput.style.display) {
+  const isHidden = deletePassInput.style.display === "none" || !deletePassInput.style.display;
+  if (isHidden) {
     deletePassInput.style.display = "inline-block";
+    deleteChk.style.display = "inline-block";
+    deleteChk.checked = false;
     deletePassInput.value = "";
     deleteErrBox.style.display = "none";
     deletePassInput.focus();
   } else {
     deletePassInput.style.display = "none";
+    deleteChk.style.display = "none";
     deleteErrBox.style.display = "none";
   }
 });
@@ -69,13 +95,17 @@ deletePassInput.addEventListener("keydown", async (e) => {
     const pwd = deletePassInput.value.trim();
     if (!pwd) return;
 
+    const isChk = deleteChk.checked;
+
     try {
-      const res = await fetch(`${BACKEND_URL}/api/delete?password=${encodeURIComponent(pwd)}`);
+      const res = await fetch(`${BACKEND_URL}/api/delete?password=${encodeURIComponent(pwd)}&chk=${isChk}`);
       const data = await res.json();
 
       if (res.ok && data.ok) {
         deletePassInput.style.display = "none";
+        deleteChk.style.display = "none";
         deletePassInput.value = "";
+        deleteChk.checked = false;
         deleteErrBox.style.display = "none";
       } else {
         deleteErrBox.textContent = data.error || "Hata oluştu.";
@@ -103,6 +133,9 @@ function startChat() {
   nameScreen.style.display = "none";
   chatScreen.style.display = "flex";
 
+  // Pre-load audio on user interaction to pass browser autoplay restrictions
+  notifyAudio.load();
+
   loadInitial();
   connectStream();
 }
@@ -124,6 +157,18 @@ function connectStream() {
         if (shouldRender(msg)) {
           renderMessage(msg);
           scrollToBottom();
+
+          // If tab is not active and message isn't sent by me -> sound + title update
+          if (msg.name !== myName) {
+            if (document.hidden) {
+              unreadCount++;
+              document.title = `[${unreadCount}] ${ORIGINAL_TITLE}`;
+              if (soundEnabled) {
+                notifyAudio.currentTime = 0;
+                notifyAudio.play().catch(() => {});
+              }
+            }
+          }
         }
       }
     } catch (e) {
