@@ -1,277 +1,1114 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Görsel İnceleyici</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aura Sohbet Platformu</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-sidebar: #1e293b;
+      --bg-card: #334155;
+      --accent: #0d9488;
+      --accent-hover: #14b8a6;
+      --text-bright: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
 
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #0f172a;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #f8fafc;
-        }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    body { background: var(--bg-main); color: var(--text-bright); height: 100vh; overflow: hidden; }
+    .hidden { display: none !important; }
 
-        /* Ana Kapsayıcı */
-        .inspector-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            /* Her kenardan %10 boşluk */
-            padding: 10vh 10vw;
-            overflow: hidden;
-        }
+    #app-container { display: flex; width: 100vw; height: 100vh; }
 
-        /* Görselin sığdırıldığı sınır alanı */
-        .viewport {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            cursor: grab;
-            touch-action: none;
-        }
+    /* Sol Kenar Çubuğu */
+    .sidebar { width: 280px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; }
+    .user-profile-card { padding: 16px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
+    .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; border: 2px solid var(--accent); flex-shrink: 0; }
 
-        .viewport:active {
-            cursor: grabbing;
-        }
+    .nav-btn { width: 100%; padding: 12px 16px; background: transparent; color: var(--text-bright); border: none; text-align: left; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; }
+    .nav-btn:hover, .nav-btn.active { background: var(--bg-card); color: var(--accent-hover); }
 
-        /* İnceleme Görseli */
-        .inspect-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            transform-origin: center center;
-            transition: transform 0.05s ease-out;
-            pointer-events: auto;
-            border-radius: 4px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-        }
+    .category-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; }
+    .add-btn-icon { background: var(--accent); color: white; border: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+    .add-btn-icon:hover { background: var(--accent-hover); }
 
-        /* Arayüz Kontrol Paneli */
-        .ui-panel {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(30, 41, 59, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 10px 20px;
-            border-radius: 50px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            z-index: 10;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        }
+    .list-container { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+    .list-container-sub { max-height: 180px; overflow-y: auto; padding: 0 8px; margin-bottom: 8px; }
 
-        .btn {
-            background: #2563eb;
-            color: #ffffff;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.2s;
-        }
+    .list-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; transition: 0.2s; font-size: 14px; }
+    .list-item:hover { background: var(--bg-card); }
+    .list-item.active { background: var(--accent); color: white; }
 
-        .btn:hover {
-            background: #1d4ed8;
-        }
+    /* Çalışma Alanı */
+    .workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); }
+    .header-bar { height: 60px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--bg-sidebar); }
 
-        .zoom-info {
-            font-size: 14px;
-            font-weight: 600;
-            min-width: 60px;
-            text-align: center;
-        }
+    .chat-layout-wrapper { flex: 1; display: flex; overflow: hidden; }
+    .content-panel { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
 
-        /* Bilgi Kutusu */
-        .instructions {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #94a3b8;
-            pointer-events: none;
-            text-align: center;
-        }
+    /* Sağ Üye Paneli */
+    .right-sidebar { width: 240px; background: var(--bg-sidebar); border-left: 1px solid #334155; display: flex; flex-direction: column; padding: 16px; }
+    .right-sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-weight: bold; font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+    .member-list-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; }
+    .member-list-item:hover { background: var(--bg-card); }
 
-        /* Gizli dosya yükleme girdisi */
-        #file-input {
-            display: none;
-        }
-    </style>
+    /* SMS Stili Mesajlar */
+    .message-group-row { display: flex; flex-direction: column; width: 100%; margin-bottom: 12px; }
+    .message-group-row.self { align-items: flex-end; }
+    .message-group-row.other { align-items: flex-start; }
+
+    .message-sender-header { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+
+    .sms-bubble { max-width: 65%; padding: 10px 14px; font-size: 14px; line-height: 1.4; word-break: break-word; position: relative; display: flex; flex-direction: column; gap: 4px; }
+    .message-group-row.self .sms-bubble { background: var(--accent); color: #ffffff; border-radius: 18px 18px 4px 18px; }
+    .message-group-row.other .sms-bubble { background: var(--bg-card); color: var(--text-bright); border-radius: 18px 18px 18px 4px; border: 1px solid #475569; }
+
+    .chat-img-attachment { max-width: 280px; max-height: 220px; border-radius: 10px; margin-top: 4px; object-fit: contain; cursor: pointer; transition: transform 0.2s; }
+    .chat-img-attachment:hover { transform: scale(1.02); }
+    .sms-timestamp { font-size: 10px; opacity: 0.75; align-self: flex-end; margin-top: 2px; }
+
+    /* Ayrılmış Bildirim Alanları */
+    .feedback-slot { min-height: 24px; font-size: 13px; font-weight: 500; display: flex; align-items: center; margin-top: 6px; transition: color 0.2s; }
+    .feedback-slot.success { color: var(--success); }
+    .feedback-slot.error { color: var(--danger); }
+
+    /* Girdi Çubuğu */
+    .chat-input-container { padding: 16px 24px; background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; }
+    .chat-input-row { display: flex; gap: 12px; align-items: center; width: 100%; }
+    .chat-input-row input[type="text"] { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px 16px; border-radius: 8px; color: white; outline: none; margin: 0; user-select: text; }
+    .attach-btn { background: var(--bg-card); border: 1px solid #475569; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    .attach-btn:hover { background: #475569; }
+
+    input[type="text"], input[type="password"] { background: #0f172a; border: 1px solid #334155; padding: 10px; border-radius: 6px; color: white; width: 100%; margin-bottom: 8px; user-select: text; }
+    button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    button:hover { background: var(--accent-hover); }
+    button.danger { background: var(--danger); }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; z-index: 100; align-items: center; justify-content: center; }
+    .modal-card { background: var(--bg-sidebar); padding: 28px; border-radius: 12px; width: 440px; border: 1px solid #334155; max-height: 90vh; overflow-y: auto; }
+
+    #pfp-editor-canvas { background: #000; border: 2px dashed var(--accent); border-radius: 50%; cursor: grab; display: block; margin: 12px auto; }
+
+    /* Tam Ekran Görsel İnceleyici CSS */
+    .inspector-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10vh 10vw;
+      overflow: hidden;
+    }
+
+    .inspector-viewport {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .inspector-viewport:active {
+      cursor: grabbing;
+    }
+
+    .inspector-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transform-origin: center center;
+      transition: transform 0.05s ease-out;
+      pointer-events: auto;
+      border-radius: 6px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .inspector-panel {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30, 41, 59, 0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 18px;
+      border-radius: 50px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      z-index: 210;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    }
+
+    .inspector-info {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+      pointer-events: none;
+      text-align: center;
+      z-index: 210;
+    }
+  </style>
 </head>
 <body>
 
-    <div class="ui-panel">
-        <button class="btn" onclick="document.getElementById('file-input').click()">Görsel Yükle</button>
-        <button class="btn" id="reset-btn">Sıfırla</button>
-        <span class="zoom-info" id="zoom-level">%100</span>
+  <audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
+
+  <div id="auth-view" class="modal-overlay">
+    <div class="modal-card" style="width: 380px;">
+      <h2 style="margin-bottom: 16px; text-align: center;">Aura Sohbet</h2>
+      <input type="text" id="username" placeholder="Kullanıcı Adı (sadece harfler)">
+      <input type="password" id="password" placeholder="Şifre" onkeydown="if(event.key==='Enter') login()">
+      
+      <button onclick="login()" style="width: 100%; margin-top: 4px; margin-bottom: 8px;">Giriş Yap</button>
+      <button onclick="register()" style="width: 100%; background: var(--success);">Hesap Oluşturma Talebi Gönder</button>
+      
+      <div id="auth-feedback" class="feedback-slot"></div>
     </div>
+  </div>
 
-    <input type="file" id="file-input" accept="image/*">
-
-    <div class="inspector-container">
-        <div class="viewport" id="viewport">
-            <img id="inspect-image" class="inspect-image" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000&q=80" alt="İncelenen Görsel">
+  <div id="app-container" class="hidden">
+    
+    <div class="sidebar">
+      <div class="user-profile-card">
+        <div id="user-avatar-container"></div>
+        <div style="flex:1;">
+          <div id="user-display-name" style="font-weight: bold;"></div>
+          <div id="user-role-tag" style="font-size: 11px; color: var(--text-muted);"></div>
         </div>
+        <button onclick="toggleSettings(true)" style="padding: 6px 10px;">⚙️</button>
+      </div>
+
+      <button class="nav-btn active" id="btn-add-friends-tab" onclick="showAddFriendsView()">+ Arkadaş Ekle</button>
+
+      <div class="category-header">
+        <span>Arkadaşlar</span>
+      </div>
+      <div class="list-container-sub" id="friends-sidebar-list"></div>
+
+      <div class="category-header">
+        <span>Gruplar</span>
+        <button class="add-btn-icon" title="Grup Oluştur" onclick="toggleCreateGroupModal(true)">+</button>
+      </div>
+      <div class="list-container" id="groups-sidebar-list"></div>
     </div>
 
-    <div class="instructions">
-        Kaydırmak için basılı tutup sürükleyin &bull; Yakınlaştırmak için tekerleği veya çimdikleme hareketini kullanın
+    <div class="workspace">
+      <div class="header-bar">
+        <h3 id="active-title">Arkadaş Ekle</h3>
+        <div id="header-actions"></div>
+      </div>
+
+      <div class="chat-layout-wrapper">
+        <div id="add-friends-panel" class="content-panel">
+          <div style="background: var(--bg-sidebar); padding: 20px; border-radius: 8px; border: 1px solid #334155;">
+            <h4>Kullanıcı adı ile arkadaş ekle</h4>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <input type="text" id="friend-target-input" placeholder="Kullanıcı adını girin" style="margin: 0;" onkeydown="if(event.key==='Enter') sendFriendRequest()">
+              <button onclick="sendFriendRequest()">Gönder</button>
+            </div>
+            <div id="add-friend-feedback" class="feedback-slot"></div>
+          </div>
+
+          <div style="background: var(--bg-sidebar); padding: 20px; border-radius: 8px; border: 1px solid #334155;">
+            <h4>Bekleyen İstekler</h4>
+            <div id="pending-friends-list" style="margin-top: 10px;"></div>
+          </div>
+        </div>
+
+        <div id="chat-messages-panel" class="content-panel hidden"></div>
+
+        <div id="right-members-sidebar" class="right-sidebar hidden">
+          <div class="right-sidebar-header">
+            <span>Üyeler</span>
+            <button class="add-btn-icon" title="Üye Ekle" onclick="toggleAddMemberModal(true)">+</button>
+          </div>
+          <div id="members-list-container" style="display: flex; flex-direction: column; gap: 8px; flex:1; overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <div id="chat-input-area" class="chat-input-container hidden">
+        <div class="chat-input-row">
+          <button class="attach-btn" title="Görsel Gönder (Maks 1MB)" onclick="document.getElementById('chat-img-input').click()">📷</button>
+          <input type="file" id="chat-img-input" accept="image/*" class="hidden" onchange="processAndSendImageMessage(this)">
+          <input type="text" id="message-input" placeholder="Bir mesaj yazın..." onkeydown="if(event.key==='Enter') sendMessage()">
+          <button onclick="sendMessage()">Gönder</button>
+        </div>
+        <div id="chat-feedback" class="feedback-slot" style="min-height:0;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="create-group-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Yeni Grup Oluştur</h3>
+      <input type="text" id="modal-group-name" placeholder="Grup Adı" style="margin-top: 16px;" onkeydown="if(event.key==='Enter') createGroupFromModal()">
+      <div id="create-group-feedback" class="feedback-slot"></div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
+        <button onclick="toggleCreateGroupModal(false)" style="background: var(--bg-card);">İptal</button>
+        <button onclick="createGroupFromModal()">Grup Oluştur</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-member-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Gruba Arkadaş Ekle</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 12px;">Aşağıdaki listenizden kabul edilmiş bir arkadaşınızı seçin:</p>
+      
+      <div id="modal-friends-scrollable-list" style="max-height: 180px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px; padding: 8px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;"></div>
+
+      <div id="add-member-feedback" class="feedback-slot"></div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+        <button onclick="toggleAddMemberModal(false)" style="background: var(--bg-card);">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Kullanıcı Ayarları</h3>
+      <hr style="border-color: #334155; margin: 12px 0;">
+
+      <h4>Profil Resmi Düzenleyici</h4>
+      <input type="file" id="pfp-file-input" accept="image/*" style="margin: 8px 0;" onchange="loadPfpIntoEditor(this)">
+      
+      <div id="editor-wrapper" class="hidden">
+        <canvas id="pfp-editor-canvas" width="180" height="180"></canvas>
+        <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+          <span style="font-size: 12px;">Yakınlaştırma:</span>
+          <input type="range" id="pfp-zoom" min="0.5" max="3" step="0.05" value="1" oninput="drawPfpEditor()">
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); text-align: center;">Konumu ayarlamak için resmi sürükleyin</p>
+        <button onclick="saveCroppedPFP()" style="width: 100%; margin: 8px 0;">Kaydet ve Profil Resmini Yükle</button>
+        <div id="pfp-feedback" class="feedback-slot"></div>
+      </div>
+
+      <h4 style="margin-top: 16px;">Bildirim Sesi Düzeyi</h4>
+      <p style="font-size: 12px; color: #f0b232; margin: 4px 0 8px;">⚠️ Ses düzeyi değişiklikleri uygulandıktan sonra 24 saat kilitlenir.</p>
+      <input type="range" id="volume-db-slider" min="-30" max="12" value="0" step="1" oninput="document.getElementById('db-val').innerText=this.value">
+      <span id="db-val">0</span> dB
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button onclick="previewAudio()">Önizle</button>
+        <button id="apply-vol-btn" onclick="applyVolumeLock()" style="background: var(--success);">Uygula (24s Kilitle)</button>
+      </div>
+      <div id="lock-msg" class="feedback-slot error"></div>
+
+      <div id="admin-section" class="hidden" style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 12px;">
+        <h4 style="color: var(--danger);">Yönetici Kontrolleri</h4>
+        <div id="admin-pending-accounts" style="margin: 8px 0;"></div>
+        <input type="text" id="delete-username-input" placeholder="Silinecek Kullanıcı Adı">
+        <button class="danger" onclick="adminDeleteUser()">Hesabı Sil</button>
+        <div id="admin-feedback" class="feedback-slot"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+        <button class="danger" onclick="logout()">Çıkış Yap</button>
+        <button onclick="toggleSettings(false)">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="image-inspector-modal" class="inspector-overlay hidden">
+    <div class="inspector-panel">
+      <span id="inspector-zoom-level" style="font-size: 14px; font-weight: 600; min-width: 50px; text-align: center;">%100</span>
+      <button onclick="resetInspectorView()" style="padding: 6px 12px; font-size: 12px;">Sıfırla</button>
+      <button onclick="closeImageInspector()" class="danger" style="padding: 6px 12px; font-size: 12px;">Kapat</button>
     </div>
 
-    <script>
-        const image = document.getElementById('inspect-image');
-        const viewport = document.getElementById('viewport');
-        const zoomDisplay = document.getElementById('zoom-level');
-        const resetBtn = document.getElementById('reset-btn');
-        const fileInput = document.getElementById('file-input');
+    <div class="inspector-viewport" id="inspector-viewport">
+      <img id="inspector-img" class="inspector-img" src="" alt="Büyütülmüş Görsel">
+    </div>
 
-        let scale = 1;
-        let pointX = 0;
-        let pointY = 0;
-        let startX = 0;
-        let startY = 0;
-        let isDragging = false;
+    <div class="inspector-info">
+      Kaydırmak için basılı tutup sürükleyin &bull; Yakınlaştırmak için fare tekerleğini veya çimdikleme hareketini kullanın
+    </div>
+  </div>
 
-        // Dokunmatik cihazlar için (Pinch zoom)
-        let initialPinchDistance = null;
-        let initialScale = 1;
+  <script>
+    const BACKEND = "https://sevrercde.onrender.com";
+    let token = localStorage.getItem("token") || "";
+    let currentUser = localStorage.getItem("username") || "";
+    let currentRole = localStorage.getItem("role") || "";
+    let currentUserPfp = localStorage.getItem("pfp") || "";
+    let activeGroupToken = "";
+    let acceptedFriendsCache = [];
+    let eventSource = null;
+    let audioCtx, gainNode;
 
-        function updateTransform() {
-            image.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
-            zoomDisplay.textContent = `%${Math.round(scale * 100)}`;
+    function displayFeedback(elementId, message, isSuccess = true) {
+      const target = document.getElementById(elementId);
+      if (!target) return;
+      target.innerText = message;
+      target.className = `feedback-slot ${isSuccess ? 'success' : 'error'}`;
+    }
+
+    // --- PFP Editor: Zoom Relative to Center of Circle Preview (90, 90) ---
+    let pfpImg = new Image();
+    let pfpOffsetX = 0, pfpOffsetY = 0;
+    let isDraggingPfp = false, dragStartX = 0, dragStartY = 0;
+
+    function loadPfpIntoEditor(input) {
+      if (!input.files.length) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        pfpImg = new Image();
+        pfpImg.onload = () => {
+          pfpOffsetX = 0; pfpOffsetY = 0;
+          document.getElementById("pfp-zoom").value = 1;
+          document.getElementById("editor-wrapper").classList.remove("hidden");
+          drawPfpEditor();
+        };
+        pfpImg.src = e.target.result;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+
+    function drawPfpEditor() {
+      const canvas = document.getElementById("pfp-editor-canvas");
+      const ctx = canvas.getContext("2d");
+      const zoom = parseFloat(document.getElementById("pfp-zoom").value);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+
+      ctx.beginPath();
+      ctx.arc(90, 90, 90, 0, Math.PI * 2);
+      ctx.clip();
+
+      const drawWidth = pfpImg.width * zoom;
+      const drawHeight = pfpImg.height * zoom;
+
+      const x = (90 - drawWidth / 2) + pfpOffsetX;
+      const y = (90 - drawHeight / 2) + pfpOffsetY;
+
+      ctx.drawImage(pfpImg, x, y, drawWidth, drawHeight);
+      ctx.restore();
+    }
+
+    const canvasEl = document.getElementById("pfp-editor-canvas");
+    canvasEl.addEventListener("mousedown", (e) => {
+      isDraggingPfp = true;
+      dragStartX = e.clientX - pfpOffsetX;
+      dragStartY = e.clientY - pfpOffsetY;
+      canvasEl.style.cursor = "grabbing";
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!isDraggingPfp) return;
+      pfpOffsetX = e.clientX - dragStartX;
+      pfpOffsetY = e.clientY - dragStartY;
+      drawPfpEditor();
+    });
+    window.addEventListener("mouseup", () => {
+      isDraggingPfp = false;
+      canvasEl.style.cursor = "grab";
+    });
+
+    async function saveCroppedPFP() {
+      const canvas = document.getElementById("pfp-editor-canvas");
+      let quality = 0.85;
+      let base64 = canvas.toDataURL("image/jpeg", quality);
+
+      while (base64.length > 512 * 1024 && quality > 0.1) {
+        quality -= 0.1;
+        base64 = canvas.toDataURL("image/jpeg", quality);
+      }
+
+      const res = await fetch(`${BACKEND}/api/user/pfp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ pfpBase64: base64 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        currentUserPfp = base64;
+        localStorage.setItem("pfp", base64);
+        renderUserAvatar(currentUser, base64);
+        displayFeedback("pfp-feedback", "Profil resmi başarıyla güncellendi!", true);
+        await refreshSnapshot();
+      } else {
+        displayFeedback("pfp-feedback", data.error, false);
+      }
+    }
+
+    // --- Görsel İnceleyici Motoru ---
+    let inspectorScale = 1;
+    let inspectorPointX = 0;
+    let inspectorPointY = 0;
+    let inspectorStartX = 0;
+    let inspectorStartY = 0;
+    let isInspectorDragging = false;
+    let initialPinchDist = null;
+    let initialPinchScale = 1;
+
+    function openImageInspector(src) {
+      const modal = document.getElementById("image-inspector-modal");
+      const img = document.getElementById("inspector-img");
+      img.src = src;
+      modal.classList.remove("hidden");
+      resetInspectorView();
+    }
+
+    function closeImageInspector() {
+      document.getElementById("image-inspector-modal").classList.add("hidden");
+    }
+
+    function updateInspectorTransform() {
+      const img = document.getElementById("inspector-img");
+      const zoomDisplay = document.getElementById("inspector-zoom-level");
+      img.style.transform = `translate(${inspectorPointX}px, ${inspectorPointY}px) scale(${inspectorScale})`;
+      if (zoomDisplay) zoomDisplay.textContent = `%${Math.round(inspectorScale * 100)}`;
+    }
+
+    function resetInspectorView() {
+      inspectorScale = 1;
+      inspectorPointX = 0;
+      inspectorPointY = 0;
+      updateInspectorTransform();
+    }
+
+    function initImageInspectorEvents() {
+      const viewport = document.getElementById("inspector-viewport");
+
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = -e.deltaY;
+        if (delta > 0) {
+          inspectorScale = Math.min(inspectorScale * 1.15, 15);
+        } else {
+          inspectorScale = Math.max(inspectorScale / 1.15, 0.8);
         }
+        updateInspectorTransform();
+      }, { passive: false });
 
-        function resetView() {
-            scale = 1;
-            pointX = 0;
-            pointY = 0;
-            updateTransform();
+      function startDrag(e) {
+        if (e.touches && e.touches.length === 2) {
+          initialPinchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialPinchScale = inspectorScale;
+          return;
         }
+        isInspectorDragging = true;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        inspectorStartX = clientX - inspectorPointX;
+        inspectorStartY = clientY - inspectorPointY;
+      }
 
-        // Fare Tekerleği ile Yakınlaştırma
-        viewport.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const xs = (e.clientX - pointX) / scale;
-            const ys = (e.clientY - pointY) / scale;
-            
-            const delta = -e.deltaY;
-            if (delta > 0) {
-                scale = Math.min(scale * 1.15, 15); // Maksimum 15x
-            } else {
-                scale = Math.max(scale / 1.15, 0.8); // Minimum 0.8x
-            }
-
-            updateTransform();
-        }, { passive: false });
-
-        // Sürükleme Başlangıcı (Fare & Dokunma)
-        function startDrag(e) {
-            if (e.touches && e.touches.length === 2) {
-                // Çimdikleme başlangıcı
-                initialPinchDistance = getPinchDistance(e);
-                initialScale = scale;
-                return;
-            }
-
-            isDragging = true;
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-
-            startX = clientX - pointX;
-            startY = clientY - pointY;
-        }
-
-        // Sürükleme Hareketi (Fare & Dokunma)
-        function moveDrag(e) {
-            if (e.touches && e.touches.length === 2) {
-                // Çimdikleme hareketi
-                if (initialPinchDistance) {
-                    const currentDistance = getPinchDistance(e);
-                    const factor = currentDistance / initialPinchDistance;
-                    scale = Math.min(Math.max(initialScale * factor, 0.8), 15);
-                    updateTransform();
-                }
-                return;
-            }
-
-            if (!isDragging) return;
-            e.preventDefault();
-
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-
-            pointX = clientX - startX;
-            pointY = clientY - startY;
-
-            updateTransform();
-        }
-
-        // Sürükleme Bitişi
-        function stopDrag(e) {
-            isDragging = false;
-            initialPinchDistance = null;
-        }
-
-        function getPinchDistance(e) {
-            return Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
+      function moveDrag(e) {
+        if (e.touches && e.touches.length === 2) {
+          if (initialPinchDist) {
+            const curDist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
             );
+            const factor = curDist / initialPinchDist;
+            inspectorScale = Math.min(Math.max(initialPinchScale * factor, 0.8), 15);
+            updateInspectorTransform();
+          }
+          return;
+        }
+        if (!isInspectorDragging) return;
+        e.preventDefault();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        inspectorPointX = clientX - inspectorStartX;
+        inspectorPointY = clientY - inspectorStartY;
+        updateInspectorTransform();
+      }
+
+      function stopDrag() {
+        isInspectorDragging = false;
+        initialPinchDist = null;
+      }
+
+      viewport.addEventListener('mousedown', startDrag);
+      window.addEventListener('mousemove', moveDrag);
+      window.addEventListener('mouseup', stopDrag);
+
+      viewport.addEventListener('touchstart', startDrag, { passive: false });
+      window.addEventListener('touchmove', moveDrag, { passive: false });
+      window.addEventListener('touchend', stopDrag);
+    }
+
+    // --- Görsel Mesaj Sıkıştırma ---
+    function processAndSendImageMessage(input) {
+      if (!input.files.length || !activeGroupToken) return;
+      const file = input.files[0];
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width, height = img.height;
+          const maxDim = 1200;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height *= maxDim / width; width = maxDim; }
+            else { width *= maxDim / height; height = maxDim; }
+          }
+
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let quality = 0.85;
+          let base64 = canvas.toDataURL("image/jpeg", quality);
+
+          while (base64.length > 1024 * 1024 && quality > 0.1) {
+            quality -= 0.1;
+            base64 = canvas.toDataURL("image/jpeg", quality);
+          }
+
+          if (base64.length > 1024 * 1024) {
+            displayFeedback("chat-feedback", "Görsel 1MB sınırını aşıyor!", false);
+            return;
+          }
+          displayFeedback("chat-feedback", "", true);
+          sendChatMessagePayload(base64);
+          input.value = "";
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function sendChatMessagePayload(content) {
+      if (!activeGroupToken) return;
+      await fetch(`${BACKEND}/api/messages/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ groupToken: activeGroupToken, content })
+      });
+    }
+
+    function renderUserAvatar(username, pfpUrl, containerId = "user-avatar-container") {
+      const container = document.getElementById(containerId);
+      if (pfpUrl) {
+        container.innerHTML = `<img src="${pfpUrl}" class="avatar-img">`;
+      } else {
+        container.innerHTML = `<div class="avatar-img">${username[0].toUpperCase()}</div>`;
+      }
+    }
+
+    // --- Ses Kazancı Motoru ---
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioCtx.createGain();
+        const audioEl = document.getElementById("notify-audio");
+        const src = audioCtx.createMediaElementSource(audioEl);
+        src.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+      }
+      setGain(parseFloat(localStorage.getItem("sound_db") || "0"));
+    }
+
+    function setGain(db) {
+      if (!gainNode) return;
+      gainNode.gain.setValueAtTime(Math.pow(10, db / 20), audioCtx.currentTime);
+    }
+
+    function playNotification() {
+      if (!document.hasFocus()) {
+        const audio = document.getElementById("notify-audio");
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }
+    }
+
+    function applyVolumeLock() {
+      const db = parseFloat(document.getElementById("volume-db-slider").value);
+      localStorage.setItem("sound_db", db);
+      localStorage.setItem("vol_lock", Date.now() + (24 * 60 * 60 * 1000));
+      setGain(db);
+      checkLockStatus();
+    }
+
+    function checkLockStatus() {
+      const lock = localStorage.getItem("vol_lock");
+      const slider = document.getElementById("volume-db-slider");
+      const btn = document.getElementById("apply-vol-btn");
+      if (lock && Date.now() < parseInt(lock)) {
+        slider.disabled = true; btn.disabled = true;
+        const remaining = ((parseInt(lock) - Date.now()) / (1000 * 60 * 60)).toFixed(1);
+        document.getElementById("lock-msg").innerText = `${remaining} saat daha kilitli.`;
+      } else {
+        slider.disabled = false; btn.disabled = false;
+        document.getElementById("lock-msg").innerText = "";
+      }
+    }
+
+    function previewAudio() {
+      initAudio();
+      setGain(parseFloat(document.getElementById("volume-db-slider").value));
+      const audio = document.getElementById("notify-audio");
+      audio.currentTime = 0; audio.play();
+    }
+
+    // --- Kimlik Doğrulama Yöneticileri ---
+    async function login() {
+      let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
+      let p = document.getElementById("password").value;
+      const res = await fetch(`${BACKEND}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        token = data.token; currentUser = data.username; currentRole = data.role; currentUserPfp = data.pfp || "";
+        localStorage.setItem("token", token);
+        localStorage.setItem("username", currentUser);
+        localStorage.setItem("role", currentRole);
+        localStorage.setItem("pfp", currentUserPfp);
+        location.reload();
+      } else {
+        displayFeedback("auth-feedback", data.error, false);
+      }
+    }
+
+    async function register() {
+      let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
+      let p = document.getElementById("password").value;
+      const res = await fetch(`${BACKEND}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      const data = await res.json();
+      displayFeedback("auth-feedback", data.message || data.error, res.ok);
+    }
+
+    function logout() {
+      if (eventSource) eventSource.close();
+      localStorage.clear();
+      location.reload();
+    }
+
+    // --- Akış ve Otomatik Yenileme Motoru ---
+    function startStream() {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource(`${BACKEND}/api/stream?token=${token}`);
+      eventSource.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.frameType === "I-FRAME") {
+          renderFriends(data.friends || []);
+          renderGroups(data.groups || []);
+        } else if (data.frameType === "P-FRAME") {
+          if (data.type === "NEW_MESSAGE") {
+            if (data.payload.group_token === activeGroupToken) {
+              loadMessages(activeGroupToken);
+            }
+            if (data.payload.sender !== currentUser) playNotification();
+          } else {
+            refreshSnapshot();
+
+            if ((data.type === "GROUP_MEMBER_ADDED" || data.type === "GROUP_MEMBER_LEFT") &&
+                data.payload.groupToken === activeGroupToken) {
+              loadGroupMembers(activeGroupToken);
+            }
+          }
+        }
+      };
+    }
+
+    async function refreshSnapshot() {
+      try {
+        const res = await fetch(`${BACKEND}/api/snapshot`, { headers: { "Authorization": token } });
+        if (res.ok) {
+          const data = await res.json();
+          renderFriends(data.friends || []);
+          renderGroups(data.groups || []);
+          if (data.user && data.user.pfp) {
+            currentUserPfp = data.user.pfp;
+            localStorage.setItem("pfp", currentUserPfp);
+            renderUserAvatar(currentUser, currentUserPfp);
+          }
+        }
+      } catch (err) { console.error("Snapshot hatası:", err); }
+    }
+
+    function renderFriends(friends) {
+      const sidebarList = document.getElementById("friends-sidebar-list");
+      const pendingList = document.getElementById("pending-friends-list");
+      sidebarList.innerHTML = ""; pendingList.innerHTML = "";
+      acceptedFriendsCache = [];
+
+      friends.forEach(f => {
+        const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
+        if (f.status === "accepted") {
+          acceptedFriendsCache.push({ username: otherUser, pfp: f.pfp });
+          
+          const item = document.createElement("div");
+          item.className = "list-item";
+          item.innerHTML = `
+            <div style="width:28px;height:28px;">${f.pfp ? `<img src="${f.pfp}" class="avatar-img" style="width:28px;height:28px;">` : `<div class="avatar-img" style="width:28px;height:28px;font-size:11px;">${otherUser[0].toUpperCase()}</div>`}</div>
+            <span>@${otherUser}</span>
+          `;
+          item.onclick = () => openDM(otherUser);
+          sidebarList.appendChild(item);
+        } else if (f.status === "pending" && f.user2 === currentUser) {
+          const pItem = document.createElement("div");
+          pItem.style.cssText = "display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; background:var(--bg-main); padding:8px 12px; border-radius:6px;";
+          pItem.innerHTML = `<span>@${f.user1}</span><button onclick="acceptFriend('${f.user1}')" style="padding:4px 10px; font-size:12px;">Kabul Et</button>`;
+          pendingList.appendChild(pItem);
+        }
+      });
+    }
+
+    function renderGroups(groups) {
+      const list = document.getElementById("groups-sidebar-list");
+      list.innerHTML = "";
+      groups.forEach(g => {
+        if (g.group_name.startsWith("@")) return;
+        const item = document.createElement("div");
+        item.className = `list-item ${g.group_token === activeGroupToken ? 'active' : ''}`;
+        item.innerText = `# ${g.group_name}`;
+        item.onclick = () => selectGroup(g.group_token, g.group_name);
+        list.appendChild(item);
+      });
+    }
+
+    // --- Sağ Çubuk Üye Listesi Motoru ---
+    async function loadGroupMembers(groupToken) {
+      const res = await fetch(`${BACKEND}/api/groups/${groupToken}/members`, { headers: { "Authorization": token } });
+      if (!res.ok) return;
+      const members = await res.json();
+      const container = document.getElementById("members-list-container");
+      container.innerHTML = "";
+
+      members.forEach(m => {
+        const item = document.createElement("div");
+        item.className = "member-list-item";
+        item.innerHTML = `
+          <div style="width: 28px; height: 28px;">
+            ${m.pfp ? `<img src="${m.pfp}" class="avatar-img" style="width:28px;height:28px;">` : `<div class="avatar-img" style="width:28px;height:28px;font-size:11px;">${m.username[0].toUpperCase()}</div>`}
+          </div>
+          <span style="font-size: 13px; font-weight: 500;">@${m.username}</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // --- SMS Stili Mesaj Gruplama (5 Dakika Kuralı) ---
+    async function loadMessages(groupToken) {
+      const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
+      if (!res.ok) return;
+      const msgs = await res.json();
+      const container = document.getElementById("chat-messages-panel");
+      container.innerHTML = "";
+
+      const FIVE_MIN_MS = 5 * 60 * 1000;
+      const groups = [];
+
+      msgs.forEach(msg => {
+        const lastGroup = groups[groups.length - 1];
+        if (
+          lastGroup &&
+          lastGroup.sender === msg.sender &&
+          (msg.created_at - lastGroup.messages[lastGroup.messages.length - 1].created_at) <= FIVE_MIN_MS
+        ) {
+          lastGroup.messages.push(msg);
+        } else {
+          groups.push({
+            sender: msg.sender,
+            pfp: msg.pfp,
+            messages: [msg]
+          });
+        }
+      });
+
+      groups.forEach(group => {
+        const isSelf = group.sender === currentUser;
+        const row = document.createElement("div");
+        row.className = `message-group-row ${isSelf ? 'self' : 'other'}`;
+
+        if (!isSelf) {
+          const senderHeader = document.createElement("div");
+          senderHeader.className = "message-sender-header";
+          senderHeader.innerHTML = `
+            <div style="width:18px;height:18px;">
+              ${group.pfp ? `<img src="${group.pfp}" class="avatar-img" style="width:18px;height:18px;">` : `<div class="avatar-img" style="width:18px;height:18px;font-size:9px;">${group.sender[0].toUpperCase()}</div>`}
+            </div>
+            <span>${group.sender}</span>
+          `;
+          row.appendChild(senderHeader);
         }
 
-        // Fare Etkinlikleri
-        viewport.addEventListener('mousedown', startDrag);
-        window.addEventListener('mousemove', moveDrag);
-        window.addEventListener('mouseup', stopDrag);
+        group.messages.forEach((msg, idx) => {
+          const isLast = idx === group.messages.length - 1;
+          const isImage = msg.content.startsWith("data:image/");
+          const msgTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Dokunmatik Etkinlikler
-        viewport.addEventListener('touchstart', startDrag, { passive: false });
-        window.addEventListener('touchmove', moveDrag, { passive: false });
-        window.addEventListener('touchend', stopDrag);
+          const bubble = document.createElement("div");
+          bubble.className = "sms-bubble";
+          if (!isLast) bubble.style.marginBottom = "4px";
 
-        // Sıfırlama Butonu
-        resetBtn.addEventListener('click', resetView);
+          const timestampHtml = isLast ? `<span class="sms-timestamp">${msgTime}</span>` : '';
 
-        // Yeni Görsel Yükleme
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    image.src = evt.target.result;
-                    resetView();
-                };
-                reader.readAsDataURL(file);
-            }
+          if (isImage) {
+            bubble.innerHTML = `<img src="${msg.content}" class="chat-img-attachment" onclick="openImageInspector('${msg.content}')" title="Görseli Büyüt">${timestampHtml}`;
+          } else {
+            bubble.innerHTML = `<span>${msg.content}</span>${timestampHtml}`;
+          }
+
+          row.appendChild(bubble);
         });
-    </script>
+
+        container.appendChild(row);
+      });
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Görünüm Yöneticileri
+    function showAddFriendsView() {
+      activeGroupToken = "";
+      document.getElementById("btn-add-friends-tab").classList.add("active");
+      document.getElementById("active-title").innerText = "Arkadaş Ekle";
+      document.getElementById("header-actions").innerHTML = "";
+      document.getElementById("add-friends-panel").classList.remove("hidden");
+      document.getElementById("chat-messages-panel").classList.add("hidden");
+      document.getElementById("right-members-sidebar").classList.add("hidden");
+      document.getElementById("chat-input-area").classList.add("hidden");
+
+      document.querySelectorAll("#groups-sidebar-list .list-item").forEach(el => el.classList.remove("active"));
+    }
+
+    async function selectGroup(groupToken, name) {
+      activeGroupToken = groupToken;
+      document.getElementById("btn-add-friends-tab").classList.remove("active");
+      document.getElementById("active-title").innerText = name;
+
+      document.getElementById("add-friends-panel").classList.add("hidden");
+      document.getElementById("chat-messages-panel").classList.remove("hidden");
+      document.getElementById("chat-input-area").classList.remove("hidden");
+
+      if (!name.startsWith("@")) {
+        document.getElementById("header-actions").innerHTML = `<button onclick="leaveGroup()" style="background:var(--danger); font-size:12px; padding:6px 12px;">Gruptan Ayrıl</button>`;
+        document.getElementById("right-members-sidebar").classList.remove("hidden");
+        loadGroupMembers(groupToken);
+      } else {
+        const targetFriend = name.replace("@", "");
+        document.getElementById("header-actions").innerHTML = `<button onclick="unfriendUser('${targetFriend}')" style="background:var(--danger); font-size:12px; padding:6px 12px;">@${targetFriend} Kişisini Arkadaşlıktan Çıkar</button>`;
+        document.getElementById("right-members-sidebar").classList.add("hidden");
+      }
+
+      loadMessages(groupToken);
+    }
+
+    async function openDM(targetUser) {
+      const res = await fetch(`${BACKEND}/api/dm/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ targetUsername: targetUser })
+      });
+      const data = await res.json();
+      if (res.ok) selectGroup(data.groupToken, `@${targetUser}`);
+      else displayFeedback("add-friend-feedback", data.error, false);
+    }
+
+    async function sendFriendRequest() {
+      const target = document.getElementById("friend-target-input").value;
+      const res = await fetch(`${BACKEND}/api/friends/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ targetUsername: target })
+      });
+      const data = await res.json();
+      displayFeedback("add-friend-feedback", data.message || data.error, res.ok);
+      if (res.ok) {
+        document.getElementById("friend-target-input").value = "";
+        refreshSnapshot();
+      }
+    }
+
+    async function acceptFriend(target) {
+      const res = await fetch(`${BACKEND}/api/friends/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ targetUsername: target })
+      });
+      if (res.ok) refreshSnapshot();
+    }
+
+    async function unfriendUser(target) {
+      const res = await fetch(`${BACKEND}/api/friends/unfriend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ targetUsername: target })
+      });
+      if (res.ok) {
+        showAddFriendsView();
+        refreshSnapshot();
+      }
+    }
+
+    async function leaveGroup() {
+      if (!activeGroupToken) return;
+      const res = await fetch(`${BACKEND}/api/groups/leave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ groupToken: activeGroupToken })
+      });
+      if (res.ok) {
+        showAddFriendsView();
+        refreshSnapshot();
+      }
+    }
+
+    // Modal Kontrolleri
+    function toggleCreateGroupModal(show) { document.getElementById("create-group-modal").classList.toggle("hidden", !show); }
+    
+    function toggleAddMemberModal(show) { 
+      const modal = document.getElementById("add-member-modal");
+      modal.classList.toggle("hidden", !show);
+      if (show) populateScrollableFriendsModal();
+    }
+
+    function populateScrollableFriendsModal() {
+      const container = document.getElementById("modal-friends-scrollable-list");
+      container.innerHTML = "";
+
+      if (!acceptedFriendsCache.length) {
+        container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Kabul edilmiş arkadaş bulunamadı.</p>`;
+        return;
+      }
+
+      acceptedFriendsCache.forEach(f => {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--bg-main); border-radius:6px; min-height:44px;";
+        row.innerHTML = `
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:28px;height:28px;">
+              ${f.pfp ? `<img src="${f.pfp}" class="avatar-img" style="width:28px;height:28px;">` : `<div class="avatar-img" style="width:28px;height:28px;font-size:11px;">${f.username[0].toUpperCase()}</div>`}
+            </div>
+            <span style="font-size:13px; font-weight:500;">@${f.username}</span>
+          </div>
+          <button onclick="submitAddMemberDirect('${f.username}')" style="padding:4px 10px; font-size:12px;">Ekle</button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    async function submitAddMemberDirect(targetUsername) {
+      if (!activeGroupToken) return;
+      const res = await fetch(`${BACKEND}/api/groups/add-member`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ groupToken: activeGroupToken, targetUsername })
+      });
+      const data = await res.json();
+      displayFeedback("add-member-feedback", data.message || data.error, res.ok);
+      if (res.ok) {
+        loadGroupMembers(activeGroupToken);
+        refreshSnapshot();
+      }
+    }
+
+    function toggleSettings(show) {
+      document.getElementById("settings-modal").classList.toggle("hidden", !show);
+      if (show) {
+        checkLockStatus();
+        if (currentRole === "admin") {
+          document.getElementById("admin-section").classList.remove("hidden");
+          loadAdminPending();
+        }
+      }
+    }
+
+    async function createGroupFromModal() {
+      const groupName = document.getElementById("modal-group-name").value;
+      const res = await fetch(`${BACKEND}/api/groups/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ groupName })
+      });
+      const data = await res.json();
+      displayFeedback("create-group-feedback", data.message || data.error, res.ok);
+      if (res.ok) {
+        toggleCreateGroupModal(false);
+        document.getElementById("modal-group-name").value = "";
+        await refreshSnapshot();
+      }
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("message-input");
+      if (!input.value.trim() || !activeGroupToken) return;
+      const content = input.value;
+      input.value = "";
+      sendChatMessagePayload(content);
+    }
+
+    async function loadAdminPending() {
+      const res = await fetch(`${BACKEND}/api/admin/pending`, { headers: { "Authorization": token } });
+      const pending = await res.json();
+      const list = document.getElementById("admin-pending-accounts");
+      list.innerHTML = "";
+      pending.forEach(p => {
+        const item = document.createElement("div");
+        item.style.margin = "4px 0";
+        item.innerHTML = `${p.username} <button onclick="adminAction(${p.id}, 'approve')">Onayla</button> <button class="danger" onclick="adminAction(${p.id}, 'deny')">Reddet</button>`;
+        list.appendChild(item);
+      });
+    }
+
+    async function adminAction(id, action) {
+      await fetch(`${BACKEND}/api/admin/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ id, action })
+      });
+      loadAdminPending();
+    }
+
+    async function adminDeleteUser() {
+      const username = document.getElementById("delete-username-input").value;
+      const res = await fetch(`${BACKEND}/api/admin/delete-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json();
+      displayFeedback("admin-feedback", data.message || data.error, res.ok);
+    }
+
+    window.onload = () => {
+      initImageInspectorEvents();
+      if (token) {
+        document.getElementById("auth-view").classList.add("hidden");
+        document.getElementById("app-container").classList.remove("hidden");
+        document.getElementById("user-display-name").innerText = currentUser;
+        document.getElementById("user-role-tag").innerText = currentRole;
+        renderUserAvatar(currentUser, currentUserPfp);
+        initAudio();
+        startStream();
+      }
+    };
+  </script>
 </body>
 </html>
