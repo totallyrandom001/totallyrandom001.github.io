@@ -69,7 +69,41 @@
     align-items: center;
   }
   header .who { font-weight: 600; }
-  header .muted { color: var(--muted); font-size: 12px; }
+  header .muted { 
+    color: var(--muted); 
+    font-size: 12px; 
+    cursor: default; 
+    text-decoration: none; 
+    user-select: none;
+  }
+
+  #adminArea {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  #adminControls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #deletePassInput {
+    display: none;
+    width: 90px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #0f1115;
+    color: var(--text);
+    font-size: 12px;
+    outline: none;
+  }
+  #deleteErrBox {
+    display: none;
+    color: #ff7a7a;
+    font-size: 10px;
+  }
 
   .warning {
     background: var(--warn-bg);
@@ -250,7 +284,6 @@
     <h1>Sohbete Başla</h1>
     <input id="nameInput" type="text" placeholder="Adınızı girin" maxlength="50" />
     <p>İstediğin adı seç. Bu başkaları tarafından görülebilir.</p>
-    <p>1.96.3</p>
     <button id="joinBtn">Sohbete Gir</button>
   </div>
 
@@ -259,7 +292,13 @@
       <div>
         <div class="who" id="whoLabel"></div>
       </div>
-      <div class="muted" id="statusLabel">bağlanıyor...</div>
+      <div id="adminArea">
+        <div id="adminControls">
+          <input id="deletePassInput" type="password" placeholder="Şifre" />
+          <div class="muted" id="statusLabel">bağlanıyor...</div>
+        </div>
+        <div id="deleteErrBox"></div>
+      </div>
     </header>
     <div class="warning">
       ⚠️ Uyarı: Lütfen bu sekmeyi konuşmazken açık tutmayınız. Fotoğraflar otomatik olarak ~1MB'a sıkıştırılır. Fotoğraf yollarken donmuş gibi olabilir, lütfen sabırlı olunuz.
@@ -293,6 +332,6 @@
     </div>
   </div>
 
-<script src="index.js"></script>
+<script src="index.js?v=3"></script>
 </body>
 </html>
