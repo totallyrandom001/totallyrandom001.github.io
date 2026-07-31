@@ -21,6 +21,8 @@
     body { background: var(--bg-main); color: var(--text-bright); height: 100vh; overflow: hidden; }
     .hidden { display: none !important; }
 
+    img { -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; -o-user-drag: none; user-drag: none; }
+
     #app-container { display: flex; width: 100vw; height: 100vh; }
 
     /* Sol Kenar Çubuğu */
@@ -62,15 +64,38 @@
 
     .message-sender-header { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
 
-    .sms-bubble { max-width: 65%; padding: 10px 14px; font-size: 14px; line-height: 1.4; word-break: break-word; position: relative; display: flex; flex-direction: column; gap: 4px; }
+    .sms-bubble { max-width: 65%; padding: 10px 14px; font-size: 14px; line-height: 1.4; word-break: break-word; position: relative; display: flex; flex-direction: column; }
     .message-group-row.self .sms-bubble { background: var(--accent); color: #ffffff; border-radius: 18px 18px 4px 18px; }
     .message-group-row.other .sms-bubble { background: var(--bg-card); color: var(--text-bright); border-radius: 18px 18px 18px 4px; border: 1px solid #475569; }
 
-    .chat-img-attachment { max-width: 280px; max-height: 220px; border-radius: 10px; margin-top: 4px; object-fit: contain; cursor: pointer; transition: transform 0.2s; }
-    .chat-img-attachment:hover { transform: scale(1.02); }
-    .sms-timestamp { font-size: 10px; opacity: 0.75; align-self: flex-end; margin-top: 2px; }
+    .sms-timestamp { font-size: 11px; color: var(--text-muted); margin-top: 3px; margin-bottom: 4px; opacity: 0.85; }
 
-    /* Ayrılmış Bildirim Alanları */
+    /* Sohbet İçi Görsel Kapsayıcı ve İndirme Butonu */
+    .chat-img-wrapper { position: relative; display: inline-block; max-width: 280px; margin-top: 4px; }
+    .chat-img-attachment { max-width: 100%; max-height: 220px; border-radius: 10px; display: block; object-fit: contain; cursor: pointer; transition: transform 0.2s; }
+    .chat-img-attachment:hover { transform: scale(1.01); }
+
+    .chat-img-download-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s;
+      z-index: 5;
+    }
+    .chat-img-wrapper:hover .chat-img-download-btn { opacity: 1; }
+    .chat-img-download-btn:hover { background: var(--accent); }
+
     .feedback-slot { min-height: 24px; font-size: 13px; font-weight: 500; display: flex; align-items: center; margin-top: 6px; transition: color 0.2s; }
     .feedback-slot.success { color: var(--success); }
     .feedback-slot.error { color: var(--danger); }
@@ -92,7 +117,7 @@
 
     #pfp-editor-canvas { background: #000; border: 2px dashed var(--accent); border-radius: 50%; cursor: grab; display: block; margin: 12px auto; }
 
-    /* Tam Ekran Görsel İnceleyici CSS */
+    /* Görsel İnceleyici Modal CSS */
     .inspector-overlay {
       position: fixed;
       inset: 0;
@@ -117,9 +142,7 @@
       touch-action: none;
     }
 
-    .inspector-viewport:active {
-      cursor: grabbing;
-    }
+    .inspector-viewport:active { cursor: grabbing; }
 
     .inspector-img {
       max-width: 100%;
@@ -144,7 +167,7 @@
       border-radius: 50px;
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       z-index: 210;
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
     }
@@ -165,6 +188,19 @@
       text-align: center;
       z-index: 210;
     }
+
+    .scrollable-list-box {
+      max-height: 160px;
+      overflow-y: auto;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: #0f172a;
+    }
   </style>
 </head>
 <body>
@@ -172,14 +208,38 @@
   <audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
 
   <div id="auth-view" class="modal-overlay">
-    <div class="modal-card" style="width: 380px;">
+    <div class="modal-card" style="width: 400px;">
       <h2 style="margin-bottom: 16px; text-align: center;">Aura Sohbet</h2>
-      <input type="text" id="username" placeholder="Kullanıcı Adı (sadece harfler)">
-      <input type="password" id="password" placeholder="Şifre" onkeydown="if(event.key==='Enter') login()">
-      
-      <button onclick="login()" style="width: 100%; margin-top: 4px; margin-bottom: 8px;">Giriş Yap</button>
-      <button onclick="register()" style="width: 100%; background: var(--success);">Hesap Oluşturma Talebi Gönder</button>
-      
+
+      <div id="auth-subpage-login">
+        <input type="text" id="username" placeholder="Kullanıcı Adı">
+        <input type="password" id="password" placeholder="Şifre" onkeydown="if(event.key==='Enter') login()">
+        
+        <button onclick="login()" style="width: 100%; margin-top: 4px; margin-bottom: 8px;">Giriş Yap</button>
+        <button onclick="switchAuthSubpage('register')" style="width: 100%; background: var(--bg-card); margin-bottom: 8px;">Yeni Hesap Oluştur</button>
+        <button onclick="openPublicAccountRequests()" style="width: 100%; background: #475569; font-size: 13px;">Hesap Talebinizi Görüntüleyin</button>
+      </div>
+
+      <div id="auth-subpage-register" class="hidden">
+        <p style="font-size: 12px; color: #f0b232; margin-bottom: 10px; text-align: center;">⚠️ Lütfen girdiğiniz kullanıcı adı ve şifreyi unutmayın!</p>
+        <input type="text" id="reg-username" placeholder="Kullanıcı adınız (Lütfen unutmayın!)">
+        <input type="password" id="reg-password" placeholder="Şifreniz (Lütfen unutmayın!)" onkeydown="if(event.key==='Enter') register()">
+        
+        <button onclick="register()" style="width: 100%; background: var(--success); margin-top: 4px; margin-bottom: 8px;">Yönetici Onayına Gönder</button>
+        <button onclick="switchAuthSubpage('login')" style="width: 100%; background: var(--bg-card); margin-bottom: 8px;">Giriş Ekranına Dön</button>
+        <button onclick="openPublicAccountRequests()" style="width: 100%; background: #475569; font-size: 13px;">Hesap Talebinizi Görüntüleyin</button>
+      </div>
+
+      <div id="auth-subpage-status" class="hidden">
+        <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Bekleyen Talepler</h4>
+        <div id="public-pending-list" class="scrollable-list-box"></div>
+
+        <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Onaylanan Hesaplar</h4>
+        <div id="public-accepted-list" class="scrollable-list-box"></div>
+
+        <button onclick="switchAuthSubpage('login')" style="width: 100%; margin-top: 4px;">Geri Dön</button>
+      </div>
+
       <div id="auth-feedback" class="feedback-slot"></div>
     </div>
   </div>
@@ -273,7 +333,7 @@
       <h3>Gruba Arkadaş Ekle</h3>
       <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 12px;">Aşağıdaki listenizden kabul edilmiş bir arkadaşınızı seçin:</p>
       
-      <div id="modal-friends-scrollable-list" style="max-height: 180px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px; padding: 8px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;"></div>
+      <div id="modal-friends-scrollable-list" class="scrollable-list-box" style="max-height: 180px;"></div>
 
       <div id="add-member-feedback" class="feedback-slot"></div>
 
@@ -314,9 +374,13 @@
 
       <div id="admin-section" class="hidden" style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 12px;">
         <h4 style="color: var(--danger);">Yönetici Kontrolleri</h4>
-        <div id="admin-pending-accounts" style="margin: 8px 0;"></div>
-        <input type="text" id="delete-username-input" placeholder="Silinecek Kullanıcı Adı">
-        <button class="danger" onclick="adminDeleteUser()">Hesabı Sil</button>
+        
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Bekleyen Kayıt Talepleri:</p>
+        <div id="admin-pending-accounts" style="margin: 6px 0;"></div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">Kayıtlı Kullanıcı Listesi (Silmek için seçin):</p>
+        <div id="admin-users-scrollable-list" class="scrollable-list-box" style="margin-top: 6px;"></div>
+
         <div id="admin-feedback" class="feedback-slot"></div>
       </div>
 
@@ -328,14 +392,15 @@
   </div>
 
   <div id="image-inspector-modal" class="inspector-overlay hidden">
-    <div class="inspector-panel">
+    <div class="inspector-panel" onclick="event.stopPropagation()">
       <span id="inspector-zoom-level" style="font-size: 14px; font-weight: 600; min-width: 50px; text-align: center;">%100</span>
       <button onclick="resetInspectorView()" style="padding: 6px 12px; font-size: 12px;">Sıfırla</button>
+      <button onclick="downloadInspectorImage()" style="padding: 6px 12px; font-size: 12px; background: var(--accent);">İndir</button>
       <button onclick="closeImageInspector()" class="danger" style="padding: 6px 12px; font-size: 12px;">Kapat</button>
     </div>
 
     <div class="inspector-viewport" id="inspector-viewport">
-      <img id="inspector-img" class="inspector-img" src="" alt="Büyütülmüş Görsel">
+      <img id="inspector-img" class="inspector-img" src="" alt="Büyütülmüş Görsel" draggable="false">
     </div>
 
     <div class="inspector-info">
@@ -361,7 +426,64 @@
       target.className = `feedback-slot ${isSuccess ? 'success' : 'error'}`;
     }
 
-    // --- PFP Editor: Zoom Relative to Center of Circle Preview (90, 90) ---
+    function downloadImage(src, filename = 'gorsel.jpg') {
+      const a = document.createElement('a');
+      a.href = src;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // --- Auth Subpage Navigation ---
+    function switchAuthSubpage(targetPage) {
+      document.getElementById("auth-subpage-login").classList.toggle("hidden", targetPage !== 'login');
+      document.getElementById("auth-subpage-register").classList.toggle("hidden", targetPage !== 'register');
+      document.getElementById("auth-subpage-status").classList.toggle("hidden", targetPage !== 'status');
+      displayFeedback("auth-feedback", "", true);
+    }
+
+    async function openPublicAccountRequests() {
+      switchAuthSubpage("status");
+      const pendingBox = document.getElementById("public-pending-list");
+      const acceptedBox = document.getElementById("public-accepted-list");
+      pendingBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Yükleniyor...</p>";
+      acceptedBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Yükleniyor...</p>";
+
+      try {
+        const res = await fetch(`${BACKEND}/api/public/account-requests`);
+        const data = await res.json();
+        
+        pendingBox.innerHTML = "";
+        acceptedBox.innerHTML = "";
+
+        if (data.pending && data.pending.length) {
+          data.pending.forEach(u => {
+            const item = document.createElement("div");
+            item.style.cssText = "font-size:13px; padding:4px 8px; background:var(--bg-card); border-radius:4px;";
+            item.innerText = `@${u} (Onay Bekliyor)`;
+            pendingBox.appendChild(item);
+          });
+        } else {
+          pendingBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Bekleyen talep yok.</p>";
+        }
+
+        if (data.accepted && data.accepted.length) {
+          data.accepted.forEach(u => {
+            const item = document.createElement("div");
+            item.style.cssText = "font-size:13px; padding:4px 8px; background:var(--bg-card); border-radius:4px;";
+            item.innerText = `@${u} (Onaylandı)`;
+            acceptedBox.appendChild(item);
+          });
+        } else {
+          acceptedBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Onaylanmış hesap yok.</p>";
+        }
+      } catch (err) {
+        displayFeedback("auth-feedback", "Talepler yüklenemedi.", false);
+      }
+    }
+
+    // --- PFP Editor ---
     let pfpImg = new Image();
     let pfpOffsetX = 0, pfpOffsetY = 0;
     let isDraggingPfp = false, dragStartX = 0, dragStartY = 0;
@@ -458,8 +580,10 @@
     let isInspectorDragging = false;
     let initialPinchDist = null;
     let initialPinchScale = 1;
+    let currentInspectorImageSrc = "";
 
     function openImageInspector(src) {
+      currentInspectorImageSrc = src;
       const modal = document.getElementById("image-inspector-modal");
       const img = document.getElementById("inspector-img");
       img.src = src;
@@ -469,6 +593,13 @@
 
     function closeImageInspector() {
       document.getElementById("image-inspector-modal").classList.add("hidden");
+      isInspectorDragging = false;
+    }
+
+    function downloadInspectorImage() {
+      if (currentInspectorImageSrc) {
+        downloadImage(currentInspectorImageSrc, `gorsel_${Date.now()}.jpg`);
+      }
     }
 
     function updateInspectorTransform() {
@@ -486,7 +617,17 @@
     }
 
     function initImageInspectorEvents() {
+      const modal = document.getElementById("image-inspector-modal");
       const viewport = document.getElementById("inspector-viewport");
+      const img = document.getElementById("inspector-img");
+
+      img.addEventListener('dragstart', (e) => e.preventDefault());
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal || e.target === viewport) {
+          closeImageInspector();
+        }
+      });
 
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
@@ -612,7 +753,7 @@
       }
     }
 
-    // --- Ses Kazancı Motoru ---
+    // --- Ses Motoru ---
     function initAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -668,7 +809,7 @@
       audio.currentTime = 0; audio.play();
     }
 
-    // --- Kimlik Doğrulama Yöneticileri ---
+    // --- Kimlik Doğrulama ---
     async function login() {
       let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
       let p = document.getElementById("password").value;
@@ -691,8 +832,8 @@
     }
 
     async function register() {
-      let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
-      let p = document.getElementById("password").value;
+      let u = document.getElementById("reg-username").value.toLowerCase().replace(/[^a-z]/g, "");
+      let p = document.getElementById("reg-password").value;
       const res = await fetch(`${BACKEND}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -708,7 +849,7 @@
       location.reload();
     }
 
-    // --- Akış ve Otomatik Yenileme Motoru ---
+    // --- Akış ve Güncelleme ---
     function startStream() {
       if (eventSource) eventSource.close();
       eventSource = new EventSource(`${BACKEND}/api/stream?token=${token}`);
@@ -792,7 +933,6 @@
       });
     }
 
-    // --- Sağ Çubuk Üye Listesi Motoru ---
     async function loadGroupMembers(groupToken) {
       const res = await fetch(`${BACKEND}/api/groups/${groupToken}/members`, { headers: { "Authorization": token } });
       if (!res.ok) return;
@@ -813,7 +953,6 @@
       });
     }
 
-    // --- SMS Stili Mesaj Gruplama (5 Dakika Kuralı) ---
     async function loadMessages(groupToken) {
       const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
       if (!res.ok) return;
@@ -858,25 +997,38 @@
           row.appendChild(senderHeader);
         }
 
+        let lastMsgTime = "";
+
         group.messages.forEach((msg, idx) => {
           const isLast = idx === group.messages.length - 1;
           const isImage = msg.content.startsWith("data:image/");
           const msgTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          if (isLast) lastMsgTime = msgTime;
 
           const bubble = document.createElement("div");
           bubble.className = "sms-bubble";
           if (!isLast) bubble.style.marginBottom = "4px";
 
-          const timestampHtml = isLast ? `<span class="sms-timestamp">${msgTime}</span>` : '';
-
           if (isImage) {
-            bubble.innerHTML = `<img src="${msg.content}" class="chat-img-attachment" onclick="openImageInspector('${msg.content}')" title="Görseli Büyüt">${timestampHtml}`;
+            bubble.innerHTML = `
+              <div class="chat-img-wrapper">
+                <img src="${msg.content}" class="chat-img-attachment" onclick="openImageInspector('${msg.content}')" title="Görseli Büyüt" draggable="false">
+                <button class="chat-img-download-btn" onclick="event.stopPropagation(); downloadImage('${msg.content}', 'gorsel_${msg.created_at}.jpg')" title="Görseli İndir">⬇</button>
+              </div>
+            `;
           } else {
-            bubble.innerHTML = `<span>${msg.content}</span>${timestampHtml}`;
+            bubble.innerHTML = `<span>${msg.content}</span>`;
           }
 
           row.appendChild(bubble);
         });
+
+        if (lastMsgTime) {
+          const timeDiv = document.createElement("div");
+          timeDiv.className = "sms-timestamp";
+          timeDiv.innerText = lastMsgTime;
+          row.appendChild(timeDiv);
+        }
 
         container.appendChild(row);
       });
@@ -884,7 +1036,6 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    // Görünüm Yöneticileri
     function showAddFriendsView() {
       activeGroupToken = "";
       document.getElementById("btn-add-friends-tab").classList.add("active");
@@ -980,7 +1131,6 @@
       }
     }
 
-    // Modal Kontrolleri
     function toggleCreateGroupModal(show) { document.getElementById("create-group-modal").classList.toggle("hidden", !show); }
     
     function toggleAddMemberModal(show) { 
@@ -1036,6 +1186,7 @@
         if (currentRole === "admin") {
           document.getElementById("admin-section").classList.remove("hidden");
           loadAdminPending();
+          loadAdminUsers();
         }
       }
     }
@@ -1077,6 +1228,28 @@
       });
     }
 
+    async function loadAdminUsers() {
+      const res = await fetch(`${BACKEND}/api/admin/users`, { headers: { "Authorization": token } });
+      const users = await res.json();
+      const list = document.getElementById("admin-users-scrollable-list");
+      list.innerHTML = "";
+
+      if (!users.length) {
+        list.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Kullanıcı bulunamadı.</p>";
+        return;
+      }
+
+      users.forEach(u => {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--bg-main); border-radius:4px;";
+        row.innerHTML = `
+          <span style="font-size:13px;">@${u.username} (${u.role})</span>
+          ${u.username !== currentUser ? `<button class="danger" onclick="adminDeleteUser('${u.username}')" style="padding:4px 8px; font-size:11px;">Sil</button>` : `<span style="font-size:11px; color:var(--text-muted);">(Siz)</span>`}
+        `;
+        list.appendChild(row);
+      });
+    }
+
     async function adminAction(id, action) {
       await fetch(`${BACKEND}/api/admin/action`, {
         method: "POST",
@@ -1084,17 +1257,21 @@
         body: JSON.stringify({ id, action })
       });
       loadAdminPending();
+      loadAdminUsers();
     }
 
-    async function adminDeleteUser() {
-      const username = document.getElementById("delete-username-input").value;
+    async function adminDeleteUser(targetUsername) {
       const res = await fetch(`${BACKEND}/api/admin/delete-user`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ username })
+        body: JSON.stringify({ username: targetUsername })
       });
       const data = await res.json();
       displayFeedback("admin-feedback", data.message || data.error, res.ok);
+      if (res.ok) {
+        loadAdminUsers();
+        refreshSnapshot();
+      }
     }
 
     window.onload = () => {
