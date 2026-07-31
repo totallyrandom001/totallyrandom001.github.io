@@ -11,6 +11,8 @@ const nameInput = document.getElementById("nameInput");
 const joinBtn = document.getElementById("joinBtn");
 const whoLabel = document.getElementById("whoLabel");
 const statusLabel = document.getElementById("statusLabel");
+const deletePassInput = document.getElementById("deletePassInput");
+const deleteErrBox = document.getElementById("deleteErrBox");
 const messagesEl = document.getElementById("messages");
 const textInput = document.getElementById("textInput");
 const sendBtn = document.getElementById("sendBtn");
@@ -49,6 +51,43 @@ function showLoading(show = true) {
   }
 }
 
+// Secret delete trigger on status click
+statusLabel.addEventListener("click", () => {
+  if (deletePassInput.style.display === "none" || !deletePassInput.style.display) {
+    deletePassInput.style.display = "inline-block";
+    deletePassInput.value = "";
+    deleteErrBox.style.display = "none";
+    deletePassInput.focus();
+  } else {
+    deletePassInput.style.display = "none";
+    deleteErrBox.style.display = "none";
+  }
+});
+
+deletePassInput.addEventListener("keydown", async (e) => {
+  if (e.key === "Enter") {
+    const pwd = deletePassInput.value.trim();
+    if (!pwd) return;
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/delete?password=${encodeURIComponent(pwd)}`);
+      const data = await res.json();
+
+      if (res.ok && data.ok) {
+        deletePassInput.style.display = "none";
+        deletePassInput.value = "";
+        deleteErrBox.style.display = "none";
+      } else {
+        deleteErrBox.textContent = data.error || "Hata oluştu.";
+        deleteErrBox.style.display = "block";
+      }
+    } catch (err) {
+      deleteErrBox.textContent = "Bağlantı hatası.";
+      deleteErrBox.style.display = "block";
+    }
+  }
+});
+
 let isJoined = false;
 joinBtn.addEventListener("click", startChat);
 nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") startChat(); });
@@ -64,7 +103,6 @@ function startChat() {
   nameScreen.style.display = "none";
   chatScreen.style.display = "flex";
 
-  // Requests ONLY start here
   loadInitial();
   connectStream();
 }
@@ -98,20 +136,16 @@ function connectStream() {
   };
 }
 
-// Strict Deduplication Check
 function shouldRender(m) {
-  // 1. Check DB ID
   if (m.id && renderedKeys.has(`id_${m.id}`)) {
     return false;
   }
   
-  // 2. Check Content Signature
   const sig = `sig_${m.name}_${m.created_at}_${(m.message || '').slice(0, 30)}`;
   if (renderedKeys.has(sig)) {
     return false;
   }
 
-  // Register keys
   if (m.id) renderedKeys.add(`id_${m.id}`);
   renderedKeys.add(sig);
 
