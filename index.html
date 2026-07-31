@@ -21,30 +21,32 @@
     body { background: var(--bg-main); color: var(--text-bright); height: 100vh; overflow: hidden; }
     .hidden { display: none !important; }
 
-    /* Layout Structure (Removed Discord Server Bar) */
     #app-container { display: flex; width: 100vw; height: 100vh; }
 
-    /* Single Modern Sidebar */
+    /* Single Sidebar */
     .sidebar { width: 300px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; }
     .user-profile-card { padding: 16px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
     .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; border: 2px solid var(--accent); }
 
-    .nav-tabs { display: flex; background: #0f172a; padding: 4px; margin: 8px; border-radius: 8px; }
-    .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-muted); font-weight: bold; cursor: pointer; border-radius: 6px; }
-    .tab-btn.active { background: var(--accent); color: white; }
+    .nav-btn { width: 100%; padding: 12px 16px; background: transparent; color: var(--text-bright); border: none; text-align: left; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; }
+    .nav-btn:hover, .nav-btn.active { background: var(--bg-card); color: var(--accent-hover); }
 
-    .list-container { flex: 1; overflow-y: auto; padding: 8px 12px; }
+    .category-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; }
+    .add-btn-icon { background: var(--accent); color: white; border: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+    .add-btn-icon:hover { background: var(--accent-hover); }
+
+    .list-container { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
     .list-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; transition: 0.2s; }
     .list-item:hover { background: var(--bg-card); }
     .list-item.active { background: var(--accent); }
 
-    /* Workspace / Main View */
+    /* Workspace */
     .workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); }
     .header-bar { height: 60px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--bg-sidebar); }
 
     .content-panel { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
 
-    /* Message Group Styling */
+    /* Message Cards */
     .message-group { background: var(--bg-sidebar); border-radius: 12px; padding: 12px 16px; border: 1px solid #334155; display: flex; flex-direction: column; max-width: 80%; width: fit-content; }
     .message-group.self { align-self: flex-end; background: #134e4a; border-color: #0d9488; }
     .group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 6px; }
@@ -57,15 +59,13 @@
     .chat-input-container { padding: 16px 24px; background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; gap: 12px; }
     .chat-input-container input { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px 16px; border-radius: 8px; color: white; outline: none; }
     
-    /* Buttons & Inputs */
     input[type="text"], input[type="password"] { background: #0f172a; border: 1px solid #334155; padding: 10px; border-radius: 6px; color: white; width: 100%; margin-bottom: 12px; }
     button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     button:hover { background: var(--accent-hover); }
     button.danger { background: var(--danger); }
 
-    /* Auth & Settings Overlays */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; z-index: 100; align-items: center; justify-content: center; }
-    .modal-card { background: var(--bg-sidebar); padding: 32px; border-radius: 12px; width: 420px; border: 1px solid #334155; }
+    .modal-card { background: var(--bg-sidebar); padding: 32px; border-radius: 12px; width: 440px; border: 1px solid #334155; }
   </style>
 </head>
 <body>
@@ -95,52 +95,42 @@
         <button onclick="toggleSettings(true)" style="padding: 6px 10px;">⚙️</button>
       </div>
 
-      <div class="nav-tabs">
-        <button class="tab-btn active" id="tab-btn-friends" onclick="switchNavTab('friends')">Friends</button>
-        <button class="tab-btn" id="tab-btn-groups" onclick="switchNavTab('groups')">Groups</button>
+      <button class="nav-btn active" id="btn-friends-tab" onclick="showFriendsView()">👥 Friends</button>
+
+      <div class="category-header">
+        <span>Groups</span>
+        <button class="add-btn-icon" title="Create Group" onclick="toggleCreateGroupModal(true)">+</button>
       </div>
 
-      <div class="list-container">
-        <div id="friends-nav-list"></div>
-        <div id="groups-nav-list" class="hidden"></div>
-      </div>
+      <div class="list-container" id="groups-nav-list"></div>
     </div>
 
     <div class="workspace">
       <div class="header-bar">
-        <h3 id="active-title">Dashboard</h3>
+        <h3 id="active-title">Friends Dashboard</h3>
+        <div id="header-actions"></div>
       </div>
 
-      <div id="dashboard-panel" class="content-panel">
+      <div id="friends-panel" class="content-panel">
         <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
-          <h4>Send Friend Request</h4>
+          <h4>Add Friend</h4>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
             <input type="text" id="friend-target-input" placeholder="Enter username" style="margin: 0;">
-            <button onclick="sendFriendRequest()">Send</button>
+            <button onclick="sendFriendRequest()">Send Request</button>
           </div>
         </div>
 
         <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
-          <h4>Pending Friend Requests</h4>
+          <h4>Pending Requests</h4>
           <div id="pending-friends-list" style="margin-top: 8px;"></div>
         </div>
 
         <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
-          <h4>Create Group</h4>
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <input type="text" id="new-group-name" placeholder="Group Name" style="margin: 0;">
-            <button onclick="createGroup()">Create</button>
-          </div>
+          <h4>Accepted Friends</h4>
+          <div id="accepted-friends-list" style="margin-top: 8px; display:flex; flex-direction:column; gap:8px;"></div>
         </div>
 
-        <div style="background: var(--bg-sidebar); padding: 16px; border-radius: 8px; border: 1px solid #334155;">
-          <h4>Add Member to Group</h4>
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <input type="text" id="group-add-user" placeholder="Target Username" style="margin: 0;">
-            <button onclick="addMemberToGroup()">Add Member</button>
-          </div>
-        </div>
-        <p id="dashboard-status-msg" style="color: var(--accent-hover); font-size: 14px;"></p>
+        <p id="friends-status-msg" style="color: var(--accent-hover); font-size: 14px;"></p>
       </div>
 
       <div id="chat-messages-panel" class="content-panel hidden"></div>
@@ -148,6 +138,28 @@
       <div id="chat-input-area" class="chat-input-container hidden">
         <input type="text" id="message-input" placeholder="Type a message..." onkeydown="handleKeyPress(event)">
         <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="create-group-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Create New Group</h3>
+      <input type="text" id="modal-group-name" placeholder="Group Name" style="margin-top: 16px;">
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
+        <button onclick="toggleCreateGroupModal(false)" style="background: var(--bg-card);">Cancel</button>
+        <button onclick="createGroupFromModal()">Create Group</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-member-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Add User to Group</h3>
+      <input type="text" id="modal-member-username" placeholder="Username to add" style="margin-top: 16px;">
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
+        <button onclick="toggleAddMemberModal(false)" style="background: var(--bg-card);">Cancel</button>
+        <button onclick="submitAddMember()">Add User</button>
       </div>
     </div>
   </div>
@@ -161,8 +173,8 @@
       <input type="file" id="pfp-file-input" accept="image/*" style="margin: 12px 0;">
       <button onclick="processAndUploadPFP()" style="margin-bottom: 16px;">Upload Photo</button>
 
-      <h4>Notification Sound Gain</h4>
-      <p style="font-size: 12px; color: #f0b232; margin: 4px 0 8px;">⚠️ Lockout Rule: Volume changes lock for 24 hours after applying!</p>
+      <h4>Notification Gain</h4>
+      <p style="font-size: 12px; color: #f0b232; margin: 4px 0 8px;">⚠️ Volume changes lock for 24 hours after applying.</p>
       <input type="range" id="volume-db-slider" min="-30" max="12" value="0" step="1" oninput="document.getElementById('db-val').innerText=this.value">
       <span id="db-val">0</span> dB
       <div style="display: flex; gap: 8px; margin-top: 8px;">
@@ -192,22 +204,21 @@
     let currentRole = localStorage.getItem("role") || "";
     let currentUserPfp = localStorage.getItem("pfp") || "";
     let activeGroupToken = "";
+    let eventSource = null;
     let audioCtx, gainNode;
 
-    // --- Image Compression Engine (Max 512KB Base64 Output) ---
+    // --- PFP Upload & Compression ---
     function processAndUploadPFP() {
       const fileInput = document.getElementById("pfp-file-input");
-      if (!fileInput.files.length) return alert("Select an image first!");
-      const file = fileInput.files[0];
+      if (!fileInput.files.length) return alert("Select an image file!");
 
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 300; // Resize boundaries
+          let width = img.width, height = img.height;
+          const maxDim = 300;
 
           if (width > height) {
             if (width > maxDim) { height *= maxDim / width; width = maxDim; }
@@ -215,29 +226,24 @@
             if (height > maxDim) { width *= maxDim / height; height = maxDim; }
           }
 
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = width; canvas.height = height;
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, width, height);
 
           let quality = 0.85;
           let base64 = canvas.toDataURL("image/jpeg", quality);
 
-          // Iteratively reduce quality until payload is strictly <= 512KB
           while (base64.length > 512 * 1024 && quality > 0.1) {
             quality -= 0.1;
             base64 = canvas.toDataURL("image/jpeg", quality);
           }
 
-          if (base64.length > 512 * 1024) {
-            return alert("Image is too large even after compression!");
-          }
-
+          if (base64.length > 512 * 1024) return alert("Image exceeds size limit.");
           uploadPFP(base64);
         };
         img.src = e.target.result;
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(fileInput.files[0]);
     }
 
     async function uploadPFP(base64) {
@@ -246,13 +252,13 @@
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ pfpBase64: base64 })
       });
-      const data = await res.json();
       if (res.ok) {
         currentUserPfp = base64;
         localStorage.setItem("pfp", base64);
         renderUserAvatar(currentUser, base64);
-        alert("Profile picture uploaded!");
+        alert("Profile picture updated!");
       } else {
+        const data = await res.json();
         alert(data.error);
       }
     }
@@ -306,13 +312,11 @@
       const slider = document.getElementById("volume-db-slider");
       const btn = document.getElementById("apply-vol-btn");
       if (lock && Date.now() < parseInt(lock)) {
-        slider.disabled = true;
-        btn.disabled = true;
+        slider.disabled = true; btn.disabled = true;
         const remaining = ((parseInt(lock) - Date.now()) / (1000 * 60 * 60)).toFixed(1);
         document.getElementById("lock-msg").innerText = `Locked for ${remaining} more hours.`;
       } else {
-        slider.disabled = false;
-        btn.disabled = false;
+        slider.disabled = false; btn.disabled = false;
         document.getElementById("lock-msg").innerText = "";
       }
     }
@@ -321,8 +325,7 @@
       initAudio();
       setGain(parseFloat(document.getElementById("volume-db-slider").value));
       const audio = document.getElementById("notify-audio");
-      audio.currentTime = 0;
-      audio.play();
+      audio.currentTime = 0; audio.play();
     }
 
     // --- Authentication ---
@@ -359,12 +362,16 @@
       document.getElementById("auth-msg").innerText = data.message || data.error;
     }
 
-    function logout() { localStorage.clear(); location.reload(); }
+    function logout() {
+      if (eventSource) eventSource.close();
+      localStorage.clear();
+      location.reload();
+    }
 
-    // --- Real-Time SSE Stream ---
+    // --- Stream Engine ---
     function startStream() {
-      const es = new EventSource(`${BACKEND}/api/stream?token=${token}`);
-      es.onmessage = (e) => {
+      eventSource = new EventSource(`${BACKEND}/api/stream?token=${token}`);
+      eventSource.onmessage = (e) => {
         const data = JSON.parse(e.data);
         if (data.frameType === "I-FRAME") {
           renderFriends(data.friends);
@@ -376,33 +383,29 @@
             }
             if (data.payload.sender !== currentUser) playNotification();
           } else if (data.type.startsWith("FRIEND_") || data.type.startsWith("GROUP_")) {
-            refreshLists();
+            location.reload();
           }
         }
       };
     }
 
-    async function refreshLists() {
-      const res = await fetch(`${BACKEND}/api/stream?token=${token}`);
-      // Re-fetch fallback
-    }
-
     function renderFriends(friends) {
-      const list = document.getElementById("friends-nav-list");
       const pendingList = document.getElementById("pending-friends-list");
-      list.innerHTML = ""; pendingList.innerHTML = "";
+      const acceptedList = document.getElementById("accepted-friends-list");
+      pendingList.innerHTML = ""; acceptedList.innerHTML = "";
 
       friends.forEach(f => {
         const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
         if (f.status === "accepted") {
           const item = document.createElement("div");
           item.className = "list-item";
+          item.style.background = "var(--bg-sidebar)";
           item.innerHTML = `
-            <div style="width: 28px; height: 28px;">${f.pfp ? `<img src="${f.pfp}" class="avatar-img" style="width:28px;height:28px;">` : `<div class="avatar-img" style="width:28px;height:28px;font-size:12px;">${otherUser[0].toUpperCase()}</div>`}</div>
+            <div style="width: 32px; height: 32px;">${f.pfp ? `<img src="${f.pfp}" class="avatar-img" style="width:32px;height:32px;">` : `<div class="avatar-img" style="width:32px;height:32px;font-size:12px;">${otherUser[0].toUpperCase()}</div>`}</div>
             <span>@${otherUser}</span>
+            <button onclick="openDM('${otherUser}')" style="margin-left: auto; padding: 4px 10px; font-size: 12px;">Message</button>
           `;
-          item.onclick = () => openDM(otherUser);
-          list.appendChild(item);
+          acceptedList.appendChild(item);
         } else if (f.status === "pending" && f.user2 === currentUser) {
           const pItem = document.createElement("div");
           pItem.style.margin = "4px 0";
@@ -418,14 +421,14 @@
       groups.forEach(g => {
         if (g.group_name.startsWith("@")) return;
         const item = document.createElement("div");
-        item.className = "list-item";
+        item.className = `list-item ${g.group_token === activeGroupToken ? 'active' : ''}`;
         item.innerText = `# ${g.group_name}`;
         item.onclick = () => selectGroup(g.group_token, g.group_name);
         list.appendChild(item);
       });
     }
 
-    // --- Message Grouping Engine (5-Minute Window) ---
+    // --- Message Grouping ---
     async function loadMessages(groupToken) {
       const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
       const msgs = await res.json();
@@ -438,20 +441,17 @@
         const isSelf = msg.sender === currentUser;
         const msgTime = msg.created_at;
 
-        // Check if message belongs to the existing consecutive block (within 5 minutes)
         if (
           currentGroup &&
           currentGroup.sender === msg.sender &&
           (msgTime - currentGroup.lastTimestamp) <= (5 * 60 * 1000)
         ) {
-          // Append line to existing block
           const line = document.createElement("div");
           line.innerText = msg.content;
           currentGroup.linesElement.appendChild(line);
           currentGroup.lastTimestamp = msgTime;
           currentGroup.timeElement.innerText = new Date(msgTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } else {
-          // Create new Message Group Card
           const groupCard = document.createElement("div");
           groupCard.className = `message-group ${isSelf ? 'self' : ''}`;
 
@@ -491,29 +491,35 @@
     }
 
     // Dynamic Navigation
-    function switchNavTab(tab) {
-      document.getElementById("tab-btn-friends").classList.toggle("active", tab === 'friends');
-      document.getElementById("tab-btn-groups").classList.toggle("active", tab === 'groups');
-      document.getElementById("friends-nav-list").classList.toggle("hidden", tab !== 'friends');
-      document.getElementById("groups-nav-list").classList.toggle("hidden", tab !== 'groups');
-
-      if (tab === 'friends') showDashboard();
-    }
-
-    function showDashboard() {
-      document.getElementById("active-title").innerText = "Friends & Activity Dashboard";
-      document.getElementById("dashboard-panel").classList.remove("hidden");
+    function showFriendsView() {
+      activeGroupToken = "";
+      document.getElementById("btn-friends-tab").classList.add("active");
+      document.getElementById("active-title").innerText = "Friends Dashboard";
+      document.getElementById("header-actions").innerHTML = "";
+      document.getElementById("friends-panel").classList.remove("hidden");
       document.getElementById("chat-messages-panel").classList.add("hidden");
       document.getElementById("chat-input-area").classList.add("hidden");
+
+      // Deactivate all group items in sidebar
+      document.querySelectorAll("#groups-nav-list .list-item").forEach(el => el.classList.remove("active"));
     }
 
-    async function selectGroup(token, name) {
-      activeGroupToken = token;
+    async function selectGroup(groupToken, name) {
+      activeGroupToken = groupToken;
+      document.getElementById("btn-friends-tab").classList.remove("active");
       document.getElementById("active-title").innerText = name;
-      document.getElementById("dashboard-panel").classList.add("hidden");
+      
+      // Add member button directly into group header bar if not a private DM
+      if (!name.startsWith("@")) {
+        document.getElementById("header-actions").innerHTML = `<button onclick="toggleAddMemberModal(true)">+ Add Member</button>`;
+      } else {
+        document.getElementById("header-actions").innerHTML = "";
+      }
+
+      document.getElementById("friends-panel").classList.add("hidden");
       document.getElementById("chat-messages-panel").classList.remove("hidden");
       document.getElementById("chat-input-area").classList.remove("hidden");
-      loadMessages(token);
+      loadMessages(groupToken);
     }
 
     async function openDM(targetUser) {
@@ -535,7 +541,7 @@
         body: JSON.stringify({ targetUsername: target })
       });
       const data = await res.json();
-      document.getElementById("dashboard-status-msg").innerText = data.message || data.error;
+      document.getElementById("friends-status-msg").innerText = data.message || data.error;
     }
 
     async function acceptFriend(target) {
@@ -547,26 +553,51 @@
       location.reload();
     }
 
-    async function createGroup() {
-      const groupName = document.getElementById("new-group-name").value;
-      await fetch(`${BACKEND}/api/groups/create`, {
+    // Modals
+    function toggleCreateGroupModal(show) { document.getElementById("create-group-modal").classList.toggle("hidden", !show); }
+    function toggleAddMemberModal(show) { document.getElementById("add-member-modal").classList.toggle("hidden", !show); }
+    function toggleSettings(show) {
+      document.getElementById("settings-modal").classList.toggle("hidden", !show);
+      if (show) {
+        checkLockStatus();
+        if (currentRole === "admin") {
+          document.getElementById("admin-section").classList.remove("hidden");
+          loadAdminPending();
+        }
+      }
+    }
+
+    async function createGroupFromModal() {
+      const groupName = document.getElementById("modal-group-name").value;
+      if (!groupName) return alert("Enter a group name!");
+      const res = await fetch(`${BACKEND}/api/groups/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ groupName })
       });
-      document.getElementById("dashboard-status-msg").innerText = "Group created!";
+      if (res.ok) {
+        toggleCreateGroupModal(false);
+        document.getElementById("modal-group-name").value = "";
+      } else {
+        const data = await res.json();
+        alert(data.error);
+      }
     }
 
-    async function addMemberToGroup() {
-      if (!activeGroupToken) return alert("Select a group first!");
-      const targetUsername = document.getElementById("group-add-user").value;
+    async function submitAddMember() {
+      if (!activeGroupToken) return alert("No active group selected!");
+      const targetUsername = document.getElementById("modal-member-username").value;
       const res = await fetch(`${BACKEND}/api/groups/add-member`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ groupToken: activeGroupToken, targetUsername })
       });
       const data = await res.json();
-      document.getElementById("dashboard-status-msg").innerText = data.message || data.error;
+      alert(data.message || data.error);
+      if (res.ok) {
+        toggleAddMemberModal(false);
+        document.getElementById("modal-member-username").value = "";
+      }
     }
 
     async function sendMessage() {
@@ -582,17 +613,6 @@
     }
 
     function handleKeyPress(e) { if (e.key === "Enter") sendMessage(); }
-
-    function toggleSettings(show) {
-      document.getElementById("settings-modal").classList.toggle("hidden", !show);
-      if (show) {
-        checkLockStatus();
-        if (currentRole === "admin") {
-          document.getElementById("admin-section").classList.remove("hidden");
-          loadAdminPending();
-        }
-      }
-    }
 
     async function loadAdminPending() {
       const res = await fetch(`${BACKEND}/api/admin/pending`, { headers: { "Authorization": token } });
