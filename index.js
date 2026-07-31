@@ -45,6 +45,9 @@ let dragStartX = 0, dragStartY = 0;
 let panStartX = 0, panStartY = 0;
 const MIN_ZOOM = 1, MAX_ZOOM = 6;
 
+// Otomatik Odaklanma: Sayfa ilk açıldığında isim kutusunu odakla
+nameInput.focus();
+
 function showError(msg) {
   errBox.textContent = msg;
   errBox.style.display = "block";
@@ -133,6 +136,9 @@ function startChat() {
   nameScreen.style.display = "none";
   chatScreen.style.display = "flex";
 
+  // Otomatik Odaklanma: Sohbet ekranı açılır açılmaz mesaj yazma alanını odakla
+  textInput.focus();
+
   // Pre-load audio on user interaction to pass browser autoplay restrictions
   notifyAudio.load();
 
@@ -158,7 +164,6 @@ function connectStream() {
           renderMessage(msg);
           scrollToBottom();
 
-          // If tab is not active and message isn't sent by me -> sound + title update
           if (msg.name !== myName) {
             if (document.hidden) {
               unreadCount++;
@@ -323,6 +328,7 @@ async function sendMessage() {
   } finally {
     sendBtn.disabled = false;
     showLoading(false);
+    textInput.focus(); // Re-focus message field after sending
   }
 }
 
