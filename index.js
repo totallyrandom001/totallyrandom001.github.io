@@ -1,6 +1,6 @@
 // ==== AYARLAR ====
 // Render üzerindeki backend adresiniz ile değiştirin:
-const BACKEND_URL = "https://servercde.onrender.com";
+const BACKEND_URL = "https://sevrercde.onrender.com";
 const POLL_INTERVAL_MS = 5000;
 
 let myName = "";
