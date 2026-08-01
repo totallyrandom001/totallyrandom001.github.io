@@ -60,8 +60,8 @@
     .message-group-row.self .sms-bubble { background: var(--accent); color: #ffffff; border-radius: 18px 18px 4px 18px; }
     .message-group-row.other .sms-bubble { background: var(--bg-card); color: var(--text-bright); border-radius: 18px 18px 18px 4px; border: 1px solid #475569; }
     .msg-action-bar { position: absolute; top: 50%; transform: translateY(-50%); display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; z-index: 10; }
-    .message-group-row.other .msg-action-bar { right: -68px; }
-    .message-group-row.self .msg-action-bar { left: -68px; }
+    .message-group-row.other .msg-action-bar { right: -36px; }
+    .message-group-row.self .msg-action-bar { left: -64px; }
     .sms-bubble-wrapper:hover .msg-action-bar { opacity: 1; }
     .msg-action-btn { background: var(--bg-sidebar); border: 1px solid #475569; color: var(--text-muted); border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
     .msg-action-btn:hover { background: var(--accent); color: #fff; }
@@ -73,6 +73,16 @@
     .chat-img-download-btn { position: absolute; top: 8px; right: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.2s, background 0.2s; z-index: 5; }
     .chat-img-wrapper:hover .chat-img-download-btn { opacity: 1; }
     .chat-img-download-btn:hover { background: var(--accent); }
+    .status-badge {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      border-radius: 50%;
+      border: 2px solid var(--bg-sidebar);
+      z-index: 2;
+    }
+    .status-badge.online { background-color: var(--success); }
+    .status-badge.offline { background-color: #64748b; }
     .feedback-slot { min-height: 24px; font-size: 13px; font-weight: 500; display: flex; align-items: center; margin-top: 6px; transition: color 0.2s; }
     .feedback-slot.success { color: var(--success); }
     .feedback-slot.error { color: var(--danger); }
@@ -385,7 +395,7 @@
           </div>
         `;
         
-        // Auto-refresh every 60 seconds if it's on the maintenance screen
+        // Auto-refresh every 5 seconds if it's on the maintenance screen
         setTimeout(() => location.reload(), 5000);
         
         // Refresh immediately if the user tabs back into the app
@@ -488,7 +498,7 @@
       document.documentElement.style.setProperty("--font-delta", (fontVal - 14) + "px");
       document.getElementById("chat-font-val").innerText = fontVal;
     }
-function applyDisplaySettingsLock() {
+    function applyDisplaySettingsLock() {
       const scaleVal = document.getElementById("ui-scale-slider").value;
       const fontVal = document.getElementById("chat-font-slider").value;
       updateUIScale(scaleVal); 
@@ -544,7 +554,10 @@ function applyDisplaySettingsLock() {
       const cleanContent = isImageRef(content) ? "📷 Görsel" : content;
       text.innerText = `Yanıtlanıyor: @${sender}: "${cleanContent.substring(0, 40)}${cleanContent.length > 40 ? '...' : ''}"`;
       banner.classList.remove("hidden");
+      // Auto-focus chat input when replying
+      document.getElementById("message-input").focus();
     }
+    
     function cancelReply() {
       activeReplyTarget = null;
       document.getElementById("reply-banner").classList.add("hidden");
@@ -728,16 +741,34 @@ function applyDisplaySettingsLock() {
       window.addEventListener('touchend', stopDrag);
     }
 
-function initOverlayCloseEvents() {
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => { 
-      // Close the modal IF the background is clicked AND it's not the login screen
-      if (e.target === overlay && overlay.id !== 'auth-view') {
-        overlay.classList.add('hidden'); 
-      }
-    });
-  });
-}
+    function initOverlayCloseEvents() {
+      document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => { 
+          // Close the modal IF the background is clicked AND it's not the login screen
+          if (e.target === overlay && overlay.id !== 'auth-view') {
+            overlay.classList.add('hidden'); 
+          }
+        });
+      });
+
+      // Global keyboard listener for instant typing focus
+      document.addEventListener('keydown', (e) => {
+        // Ignore if we are already in an input, textarea, or if modifier keys are pressed
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.ctrlKey || e.altKey || e.metaKey) return;
+        
+        // If it's a printable character (length 1), auto-focus the chat input
+        if (e.key.length === 1) {
+          const chatInput = document.getElementById('message-input');
+          const chatArea = document.getElementById('chat-input-area');
+          
+          // Only focus if the chat input is actually visible
+          if (chatInput && chatArea && !chatArea.classList.contains('hidden')) {
+            chatInput.focus();
+            // The browser will naturally apply this keystroke to the newly focused input
+          }
+        }
+      });
+    }
 
     function processAndSendImageMessage(input) {
       if (!input.files.length || !activeGroupToken) return;
@@ -798,10 +829,27 @@ function initOverlayCloseEvents() {
       // UI update happens via the MESSAGE_DELETED SSE event, not here — no extra request.
     }
 
-    function renderUserAvatar(username, pfpUrl, containerId = "user-avatar-container") {
+   function renderUserAvatar(username, pfpUrl, containerId = "user-avatar-container") {
       const container = document.getElementById(containerId);
-      if (pfpUrl) { container.innerHTML = ""; const img = document.createElement("img"); img.src = pfpUrl; img.className = "avatar-img"; container.appendChild(img); }
-      else { container.innerHTML = ""; const div = document.createElement("div"); div.className = "avatar-img"; div.innerText = username[0].toUpperCase(); container.appendChild(div); }
+      container.innerHTML = "";
+      container.style.position = "relative"; // Required so the badge sticks to the corner
+      container.style.display = "inline-block";
+
+      if (pfpUrl) { 
+        const img = document.createElement("img"); img.src = pfpUrl; img.className = "avatar-img"; 
+        container.appendChild(img); 
+      } else { 
+        const div = document.createElement("div"); div.className = "avatar-img"; div.innerText = username[0].toUpperCase(); 
+        container.appendChild(div); 
+      }
+      
+      // Add the online badge for yourself
+      const statusBadge = document.createElement("div");
+      statusBadge.className = "status-badge online";
+      statusBadge.style.width = "12px";
+      statusBadge.style.height = "12px";
+      statusBadge.style.borderColor = "#0f172a"; // Matches the profile card background
+      container.appendChild(statusBadge);
     }
 
     function initAudio() {
@@ -823,35 +871,19 @@ function initOverlayCloseEvents() {
       }
     }
     function applyVolumeLock() {
-      const now = Date.now();
-      const todayStr = new Date().toISOString().split('T')[0];
-      let countData = JSON.parse(localStorage.getItem("vol_count_data") || "{}");
-      if (countData.date !== todayStr) countData = { date: todayStr, count: 0 };
-      if (countData.count >= 50) { document.getElementById("lock-msg").innerText = "Günlük 50 ses değişikliği sınırına ulaştınız!"; return; }
       const db = parseFloat(document.getElementById("volume-db-slider").value);
-      countData.count += 1;
-      localStorage.setItem("vol_count_data", JSON.stringify(countData));
       localStorage.setItem("sound_db", db);
-      localStorage.setItem("vol_lock", now + 10000);
       setGain(db);
-      checkLockStatus();
+      
+      const msgBox = document.getElementById("lock-msg");
+      msgBox.className = "feedback-slot success";
+      msgBox.innerText = "Ses başarıyla uygulandı!";
+      setTimeout(() => msgBox.innerText = "", 3000);
     }
     function checkLockStatus() {
-      const lock = localStorage.getItem("vol_lock");
-      const slider = document.getElementById("volume-db-slider");
-      const btn = document.getElementById("apply-vol-btn");
-      const todayStr = new Date().toISOString().split('T')[0];
-      let countData = JSON.parse(localStorage.getItem("vol_count_data") || "{}");
-      if (countData.date !== todayStr) countData = { date: todayStr, count: 0 };
-      if (countData.count >= 50) { slider.disabled = true; btn.disabled = true; document.getElementById("lock-msg").innerText = "Günlük 50 ses değişikliği sınırına ulaştınız!"; return; }
-      if (lock && Date.now() < parseInt(lock)) {
-        slider.disabled = true; btn.disabled = true;
-        document.getElementById("lock-msg").innerText = `${Math.ceil((parseInt(lock) - Date.now()) / 1000)} saniye bekleyin (${countData.count}/50 kullanıldı).`;
-        setTimeout(checkLockStatus, 1000);
-      } else {
-        slider.disabled = false; btn.disabled = false;
-        document.getElementById("lock-msg").innerText = `Bugün yapılan değişiklik: ${countData.count}/50`;
-      }
+      // Limit removed, inputs are always enabled
+      document.getElementById("volume-db-slider").disabled = false;
+      document.getElementById("apply-vol-btn").disabled = false;
     }
     function previewAudio() {
       initAudio();
@@ -937,8 +969,13 @@ function initOverlayCloseEvents() {
           case "NEW_MESSAGE": {
             const gt = data.payload.group_token;
             if (chatMessagesCache[gt]) { chatMessagesCache[gt].messages.push(data.payload); touchCacheOrder(gt); }
-            if (gt === activeGroupToken) renderMessagesFromCache(gt);
-            else { unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; renderFriends(cachedFriends); renderGroups(cachedGroups); }
+            
+            if (gt === activeGroupToken) {
+              const isMyMessage = data.payload.sender === currentUser;
+              renderMessagesFromCache(gt, isMyMessage); // Force scroll if you just sent it
+            } else { 
+              unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; renderFriends(cachedFriends); renderGroups(cachedGroups); 
+            }
             if (data.payload.sender !== currentUser) playNotification();
             break;
           }
@@ -1040,10 +1077,21 @@ function initOverlayCloseEvents() {
 
           const left = document.createElement("div");
           left.style.cssText = "display:flex; align-items:center; gap:10px;";
+          
           const avatarWrap = document.createElement("div");
-          avatarWrap.style.cssText = "width:28px;height:28px;";
+          // Notice position: relative; is added here
+          avatarWrap.style.cssText = "width:28px;height:28px; position:relative;"; 
+          
           if (f.pfp) { const img = document.createElement("img"); img.src = f.pfp; img.className = "avatar-img"; img.style.cssText = "width:28px;height:28px;"; avatarWrap.appendChild(img); }
           else { const div = document.createElement("div"); div.className = "avatar-img"; div.style.cssText = "width:28px;height:28px;font-size:11px;"; div.innerText = otherUser[0].toUpperCase(); avatarWrap.appendChild(div); }
+          
+          // Add the status badge
+          const statusBadge = document.createElement("div");
+          statusBadge.className = `status-badge ${f.online ? 'online' : 'offline'}`;
+          statusBadge.style.width = "9px";
+          statusBadge.style.height = "9px";
+          avatarWrap.appendChild(statusBadge);
+
           const nameSpan = document.createElement("span"); nameSpan.innerText = `@${otherUser}`;
           left.appendChild(avatarWrap); left.appendChild(nameSpan);
           item.appendChild(left);
@@ -1127,6 +1175,7 @@ function initOverlayCloseEvents() {
 
       const container = document.getElementById("members-list-container");
       container.innerHTML = "";
+      
       members.forEach(m => {
         const isMemberOwner = m.username === groupInfo.created_by || m.username === "totally";
         const canAdd = m.can_add_members !== 0;
@@ -1135,28 +1184,73 @@ function initOverlayCloseEvents() {
 
         const left = document.createElement("div");
         left.style.cssText = "display:flex; align-items:center; gap:8px;";
-        const avatarWrap = document.createElement("div"); avatarWrap.style.cssText = "width:24px;height:24px;";
-        if (m.pfp) { const img = document.createElement("img"); img.src = m.pfp; img.className = "avatar-img"; img.style.cssText = "width:24px;height:24px;"; avatarWrap.appendChild(img); }
-        else { const div = document.createElement("div"); div.className = "avatar-img"; div.style.cssText = "width:24px;height:24px;font-size:10px;"; div.innerText = m.username[0].toUpperCase(); avatarWrap.appendChild(div); }
-        const nameSpan = document.createElement("span"); nameSpan.style.cssText = "font-size: 12px; font-weight: 500;";
+        
+        const avatarWrap = document.createElement("div");
+        // Added position: relative; so the badge sticks to the corner
+        avatarWrap.style.cssText = "width:24px;height:24px; position:relative;"; 
+        
+        // 1. Attach Profile Picture or Initials
+        if (m.pfp) { 
+          const img = document.createElement("img"); 
+          img.src = m.pfp; 
+          img.className = "avatar-img"; 
+          img.style.cssText = "width:24px;height:24px;"; 
+          avatarWrap.appendChild(img); 
+        } else { 
+          const div = document.createElement("div"); 
+          div.className = "avatar-img"; 
+          div.style.cssText = "width:24px;height:24px;font-size:10px;"; 
+          div.innerText = m.username[0].toUpperCase(); 
+          avatarWrap.appendChild(div); 
+        }
+        
+        // 2. Attach the Online/Offline Status Badge
+        const statusBadge = document.createElement("div");
+        statusBadge.className = `status-badge ${m.online ? 'online' : 'offline'}`;
+        statusBadge.style.width = "7px";
+        statusBadge.style.height = "7px";
+        statusBadge.style.borderWidth = "1.5px"; 
+        avatarWrap.appendChild(statusBadge);
+
+        // 3. Attach Username and Founder Badge
+        const nameSpan = document.createElement("span"); 
+        nameSpan.style.cssText = "font-size: 12px; font-weight: 500;";
         nameSpan.innerText = `@${m.username}` + (isMemberOwner ? " " : "");
-        if (isMemberOwner) { const badge = document.createElement("span"); badge.className = "badge-owner"; badge.innerText = "Kurucu"; nameSpan.appendChild(badge); }
-        left.appendChild(avatarWrap); left.appendChild(nameSpan);
+        
+        if (isMemberOwner) { 
+          const badge = document.createElement("span"); 
+          badge.className = "badge-owner"; 
+          badge.innerText = "Kurucu"; 
+          nameSpan.appendChild(badge); 
+        }
+        
+        left.appendChild(avatarWrap); 
+        left.appendChild(nameSpan);
         item.appendChild(left);
 
+        // 4. Attach Admin Action Buttons (Kick / Invite Perms)
         if (isOwner && !isMemberOwner) {
-          const actions = document.createElement("div"); actions.style.cssText = "display:flex; gap:4px;";
+          const actions = document.createElement("div"); 
+          actions.style.cssText = "display:flex; gap:4px;";
+          
           const permBtn = document.createElement("button");
           permBtn.title = canAdd ? "Davet Yetkisini Kapat" : "Davet Yetkisini Aç";
           permBtn.style.cssText = `padding:2px 6px; font-size:10px; background:${canAdd ? 'var(--accent)' : '#475569'};`;
           permBtn.innerText = canAdd ? "➕" : "🚫";
           permBtn.onclick = () => toggleMemberInvitePerm(m.username, canAdd ? 0 : 1);
-          const kickBtn = document.createElement("button"); kickBtn.className = "danger";
-          kickBtn.title = "Gruptan Çıkar"; kickBtn.style.cssText = "padding:2px 6px; font-size:10px;"; kickBtn.innerText = "❌";
+          
+          const kickBtn = document.createElement("button"); 
+          kickBtn.className = "danger";
+          kickBtn.title = "Gruptan Çıkar"; 
+          kickBtn.style.cssText = "padding:2px 6px; font-size:10px;"; 
+          kickBtn.innerText = "❌";
           kickBtn.onclick = () => kickGroupMember(m.username);
-          actions.appendChild(permBtn); actions.appendChild(kickBtn);
+          
+          actions.appendChild(permBtn); 
+          actions.appendChild(kickBtn);
           item.appendChild(actions);
         }
+        
         container.appendChild(item);
       });
     }
@@ -1188,7 +1282,7 @@ function initOverlayCloseEvents() {
 
     // ---------------- Messages: paginated load + infinite scroll-back ----------------
     async function loadMessages(groupToken) {
-      if (chatMessagesCache[groupToken]) { renderMessagesFromCache(groupToken); touchCacheOrder(groupToken); return; }
+      if (chatMessagesCache[groupToken]) { renderMessagesFromCache(groupToken, true); touchCacheOrder(groupToken); return; }
 
       const container = document.getElementById("chat-messages-panel");
       container.innerHTML = `<div class="loading-display">YÜKLENİYOR...</div>`;
@@ -1201,7 +1295,7 @@ function initOverlayCloseEvents() {
       if (groupToken !== activeGroupToken) return;
 
       chatMessagesCache[groupToken] = { messages: msgs, hasMore: msgs.length === 50, loadingMore: false, _touched: Date.now() };
-      renderMessagesFromCache(groupToken);
+      renderMessagesFromCache(groupToken, true);
     }
 
     async function loadOlderMessages(groupToken) {
@@ -1234,12 +1328,14 @@ function initOverlayCloseEvents() {
       container.addEventListener("scroll", scrollHandlerBound);
     }
 
-    function renderMessagesFromCache(groupToken) {
+    function renderMessagesFromCache(groupToken, forceScrollToBottom = false) {
       if (groupToken !== activeGroupToken) return;
       const container = document.getElementById("chat-messages-panel");
       const cache = chatMessagesCache[groupToken];
       const msgs = cache ? cache.messages : [];
-      const wasNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      
+      // Auto-scroll if forced (like initial load or you just sent a message), OR if already near bottom (Threshold expanded to 800px)
+      const wasNearBottom = forceScrollToBottom || (container.scrollHeight - container.scrollTop - container.clientHeight < 800);
 
       container.innerHTML = "";
       if (cache && cache.hasMore) {
@@ -1266,7 +1362,7 @@ function initOverlayCloseEvents() {
         const row = document.createElement("div");
         row.className = `message-group-row ${isSelf ? 'self' : 'other'}`;
 
-if (!isSelf) {
+        if (!isSelf) {
           const senderHeader = document.createElement("div");
           senderHeader.className = "message-sender-header";
           const avatarWrap = document.createElement("div"); avatarWrap.style.display = "inline-block";
@@ -1344,6 +1440,8 @@ if (!isSelf) {
             resolveImageContent(msg.content).then(src => {
               if (!src) return;
               imgEl.src = src;
+              // Ensure we stay scrolled to bottom after an async image expands the chat
+              imgEl.onload = () => { if (wasNearBottom) container.scrollTop = container.scrollHeight; };
               imgEl.onclick = () => openImageInspector(src);
               dlBtn.onclick = (e) => { e.stopPropagation(); downloadImage(src, `gorsel_${msg.created_at}.jpg`); };
             });
@@ -1623,26 +1721,26 @@ if (!isSelf) {
     }
 
     // ---------------- Boot ----------------
-window.onload = async () => {
-  initDisplaySettings();
-  initImageInspectorEvents();
-  initOverlayCloseEvents();
-  
-  if (token) {
-    document.getElementById("auth-view").classList.add("hidden");
-    document.getElementById("app-container").classList.remove("hidden");
-    document.getElementById("user-display-name").innerText = currentUser;
-    document.getElementById("user-role-tag").innerText = currentRole;
-    renderUserAvatar(currentUser, currentUserPfp);
-    connectStream();
+    window.onload = async () => {
+      initDisplaySettings();
+      initImageInspectorEvents();
+      initOverlayCloseEvents();
+      
+      if (token) {
+        document.getElementById("auth-view").classList.add("hidden");
+        document.getElementById("app-container").classList.remove("hidden");
+        document.getElementById("user-display-name").innerText = currentUser;
+        document.getElementById("user-role-tag").innerText = currentRole;
+        renderUserAvatar(currentUser, currentUserPfp);
+        connectStream();
 
-    const initAudioOnce = () => { 
-      initAudio(); 
-      document.removeEventListener("click", initAudioOnce); 
+        const initAudioOnce = () => { 
+          initAudio(); 
+          document.removeEventListener("click", initAudioOnce); 
+        };
+        document.addEventListener("click", initAudioOnce);
+      }
     };
-    document.addEventListener("click", initAudioOnce);
-  }
-};
   </script>
 </body>
 </html>
