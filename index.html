@@ -679,11 +679,16 @@
       window.addEventListener('touchend', stopDrag);
     }
 
-    function initOverlayCloseEvents() {
-      document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('hidden'); });
-      });
-    }
+function initOverlayCloseEvents() {
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => { 
+      // Close the modal IF the background is clicked AND it's not the login screen
+      if (e.target === overlay && overlay.id !== 'auth-view') {
+        overlay.classList.add('hidden'); 
+      }
+    });
+  });
+}
 
     function processAndSendImageMessage(input) {
       if (!input.files.length || !activeGroupToken) return;
