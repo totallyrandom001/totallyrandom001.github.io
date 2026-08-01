@@ -280,7 +280,6 @@
       <div id="scale-lock-msg" class="feedback-slot error"></div>
       <hr style="border-color: #334155; margin: 16px 0;">
       <h4>Bildirim Sesi Düzeyi</h4>
-      <p style="font-size: 12px; color: #f0b232; margin: 4px 0 8px;">⚠️ Ses ayarları 10 saniye kilitlenir (Günlük sınır: 50).</p>
       <input type="range" id="volume-db-slider" min="-30" max="30" value="0" step="1" oninput="document.getElementById('db-val').innerText=this.value">
       <span id="db-val">0</span> dB
       <div style="display: flex; gap: 8px; margin-top: 8px;">
@@ -489,42 +488,40 @@
       document.documentElement.style.setProperty("--font-delta", (fontVal - 14) + "px");
       document.getElementById("chat-font-val").innerText = fontVal;
     }
-    function applyDisplaySettingsLock() {
-      const now = Date.now();
-      const todayStr = new Date().toISOString().split('T')[0];
-      let countData = JSON.parse(localStorage.getItem("scale_count_data") || "{}");
-      if (countData.date !== todayStr) countData = { date: todayStr, count: 0 };
-      if (countData.count >= 50) { document.getElementById("scale-lock-msg").innerText = "Günlük 50 boyut değişikliği sınırına ulaştınız!"; return; }
-      const lock = localStorage.getItem("scale_lock");
-      if (lock && now < parseInt(lock)) {
-        document.getElementById("scale-lock-msg").innerText = `${Math.ceil((parseInt(lock) - now) / 1000)} saniye bekleyin.`;
-        return;
-      }
+function applyDisplaySettingsLock() {
       const scaleVal = document.getElementById("ui-scale-slider").value;
       const fontVal = document.getElementById("chat-font-slider").value;
-      updateUIScale(scaleVal); updateChatFont(fontVal);
+      updateUIScale(scaleVal); 
+      updateChatFont(fontVal);
       localStorage.setItem("app_ui_scale", scaleVal);
       localStorage.setItem("app_chat_font", fontVal);
-      countData.count += 1;
-      localStorage.setItem("scale_count_data", JSON.stringify(countData));
-      localStorage.setItem("scale_lock", now + 5000);
-      checkScaleLockStatus();
+      
+      const msgBox = document.getElementById("scale-lock-msg");
+      msgBox.className = "feedback-slot success";
+      msgBox.innerText = "Boyut ayarları başarıyla uygulandı!";
+      setTimeout(() => msgBox.innerText = "", 3000);
     }
+
     function checkScaleLockStatus() {
-      const lock = localStorage.getItem("scale_lock");
-      const btn = document.getElementById("apply-scale-btn");
-      const todayStr = new Date().toISOString().split('T')[0];
-      let countData = JSON.parse(localStorage.getItem("scale_count_data") || "{}");
-      if (countData.date !== todayStr) countData = { date: todayStr, count: 0 };
-      if (countData.count >= 50) { btn.disabled = true; document.getElementById("scale-lock-msg").innerText = "Günlük 50 boyut değişikliği sınırına ulaştınız!"; return; }
-      if (lock && Date.now() < parseInt(lock)) {
-        btn.disabled = true;
-        document.getElementById("scale-lock-msg").innerText = `${Math.ceil((parseInt(lock) - Date.now()) / 1000)} saniye bekleyin (${countData.count}/50 kullanıldı).`;
-        setTimeout(checkScaleLockStatus, 1000);
-      } else {
-        btn.disabled = false;
-        document.getElementById("scale-lock-msg").innerText = `Bugün yapılan değişiklik: ${countData.count}/50`;
-      }
+      // Limit removed, button is always enabled
+      document.getElementById("apply-scale-btn").disabled = false;
+    }
+
+    function applyVolumeLock() {
+      const db = parseFloat(document.getElementById("volume-db-slider").value);
+      localStorage.setItem("sound_db", db);
+      setGain(db);
+      
+      const msgBox = document.getElementById("lock-msg");
+      msgBox.className = "feedback-slot success";
+      msgBox.innerText = "Ses başarıyla uygulandı!";
+      setTimeout(() => msgBox.innerText = "", 3000);
+    }
+
+    function checkLockStatus() {
+      // Limit removed, inputs are always enabled
+      document.getElementById("volume-db-slider").disabled = false;
+      document.getElementById("apply-vol-btn").disabled = false;
     }
 
     function displayFeedback(elementId, message, isSuccess = true) {
