@@ -355,6 +355,58 @@
     function isImageRef(content) {
       return typeof content === "string" && (content.startsWith("data:image/") || content.startsWith("img:"));
     }
+
+// --- INSTANT SERVER HEALTH CHECK & MAINTENANCE OVERRIDE ---
+(async function runInitialHealthCheck() {
+  const currentToken = localStorage.getItem("token");
+  if (!currentToken) {
+    try {
+      const authCheckRes = await fetch(`${BACKEND}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "totally", password: "6767" })
+      });
+
+      let triggerMaintenance = false;
+
+      // Check for 502 status first
+      if (authCheckRes.status === 502) {
+        triggerMaintenance = true;
+      } else {
+        const authCheckData = await authCheckRes.json();
+        if (authCheckData.error === "VAIO bağlantısı başarısız") {
+          triggerMaintenance = true;
+        }
+      }
+
+      if (triggerMaintenance) {
+        document.body.innerHTML = `
+          <div style="background-color: black; color: red; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box;">
+            SOPERT ŞU ANDA BAKIM ALTINDA YA DA ÇALIŞMAMAKTADIR, LÜTFEN DAHA SONRA TEKRAR DENEYİNİZ.
+          </div>
+        `;
+        
+        // Auto-refresh every 60 seconds if it's on the maintenance screen
+        setTimeout(() => location.reload(), 60000);
+        
+        // Refresh immediately if the user tabs back into the app
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") location.reload();
+        });
+        window.addEventListener("focus", () => location.reload());
+
+        window.stop(); 
+      }
+    } catch (e) {
+      // If it errors out entirely (server down/no connection), refresh every 1 second
+      console.warn("Could not reach backend, retrying in 1 second...", e);
+      setTimeout(() => location.reload(), 1000);
+    }
+  }
+})();
+// ----------------------------------------------------------
+
+    
     async function resolveImageContent(content) {
       if (!content) return "";
       if (content.startsWith("data:image/")) return content; // legacy inline images still work
@@ -1555,31 +1607,6 @@ function initOverlayCloseEvents() {
 
     // ---------------- Boot ----------------
 window.onload = async () => {
-  // --- SERVER HEALTH CHECK & MAINTENANCE OVERRIDE ---
-  if (!token) {
-    try {
-      const authCheckRes = await fetch(`${BACKEND}/api/login`, {
-        method: "POST", 
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "totally", password: "6767" })
-      });
-      const authCheckData = await authCheckRes.json();
-      
-      if (authCheckData.error === "VAIO bağlantısı başarısız") {
-        document.body.innerHTML = `
-          <div style="background-color: black; color: red; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box;">
-            SOPERT ŞU ANDA BAKIM ALTINDA YA DA ÇALIŞMAMAKTADIR, LÜTFEN DAHA SONRA TEKRAR DENEYİNİZ.
-          </div>
-        `;
-        setTimeout(() => location.reload(), 60000);
-        return; // Halt the rest of the script so the app doesn't load
-      }
-    } catch (e) {
-      console.warn("Could not reach backend for initial health check.", e);
-    }
-  }
-  // --------------------------------------------------
-
   initDisplaySettings();
   initImageInspectorEvents();
   initOverlayCloseEvents();
