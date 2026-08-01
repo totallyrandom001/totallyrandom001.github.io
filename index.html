@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>SOPERT</title>
   <style>
-    :root {
+   :root {
       --bg-main: #0f172a;
       --bg-sidebar: #1e293b;
       --bg-card: #334155;
@@ -25,8 +25,10 @@
     .hidden { display: none !important; }
     img { -webkit-user-drag: none; user-drag: none; }
     #app-container { display: flex; width: 100vw; height: 100vh; height: 100dvh; position: relative; }
+    
     .sidebar { width: 280px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 50; }
     .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; display: none; }
+    
     .user-profile-card { padding: 16px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
     .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; border: 2px solid var(--accent); flex-shrink: 0; }
     .nav-btn { width: 100%; padding: 12px 16px; background: transparent; color: var(--text-bright); border: none; text-align: left; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; }
@@ -41,11 +43,19 @@
     .list-item.active { background: var(--accent); color: white; }
     .unread-badge { background: var(--danger); color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
     .workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); width: 100%; height: 100%; overflow: hidden; }
+    
     .header-bar { height: 60px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: var(--bg-sidebar); flex-shrink: 0; }
     .mobile-menu-toggle { display: none; background: transparent; border: none; color: var(--text-bright); font-size: 20px; cursor: pointer; margin-right: 12px; }
+    
+    /* NEW: Right menu toggle base styling (hidden on desktop) */
+    .mobile-right-menu-toggle { display: none; background: transparent; border: none; color: var(--text-bright); font-size: 20px; cursor: pointer; margin-left: 12px; }
+    
     .chat-layout-wrapper { flex: 1; display: flex; overflow: hidden; position: relative; min-height: 0; }
     .content-panel { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-    .right-sidebar { width: 260px; background: var(--bg-sidebar); border-left: 1px solid #334155; display: flex; flex-direction: column; padding: 16px; }
+    
+    /* MODIFIED: Added transition and z-index to right-sidebar */
+    .right-sidebar { width: 260px; background: var(--bg-sidebar); border-left: 1px solid #334155; display: flex; flex-direction: column; padding: 16px; transition: transform 0.3s ease; z-index: 50; }
+    
     .right-sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-weight: bold; font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 8px; }
     .member-list-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 6px; }
     .member-list-item:hover { background: var(--bg-card); }
@@ -100,12 +110,21 @@
     .loading-display { display: flex; justify-content: center; align-items: center; height: 100%; width: 100%; color: var(--text-muted); font-weight: 500; font-size: 14px; letter-spacing: 1px; }
     .loading-display-small { text-align: center; padding: 24px 0; color: var(--text-muted); font-weight: 500; font-size: 12px; letter-spacing: 1px; }
     .loading-more-msgs { text-align: center; padding: 8px 0; color: var(--text-muted); font-size: 11px; }
+    
     @media (max-width: 768px), (max-aspect-ratio: 1/1) {
       .mobile-menu-toggle { display: block; }
+      
       .sidebar { position: fixed; top: 0; bottom: 0; left: 0; transform: translateX(-100%); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
       .sidebar.mobile-open { transform: translateX(0); }
       .sidebar-overlay.mobile-open { display: block; }
-      .right-sidebar { position: fixed; top: 60px; bottom: 0; right: 0; z-index: 30; box-shadow: -5px 0 15px rgba(0,0,0,0.5); }
+      
+      /* MODIFIED: Right sidebar sliding logic */
+      .right-sidebar { position: fixed; top: 60px; bottom: 0; right: 0; z-index: 50; box-shadow: -5px 0 15px rgba(0,0,0,0.5); transform: translateX(100%); }
+      .right-sidebar.mobile-open { transform: translateX(0); }
+      
+      /* NEW: Show right menu toggle on mobile */
+      .mobile-right-menu-toggle { display: block; }
+
       .sms-bubble-wrapper { max-width: 88%; }
       .chat-input-container { padding-top: 24px; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
       .chat-input-row input[type="text"] { padding-top: 20px; padding-bottom: 20px; font-size: 16px; }
@@ -115,9 +134,8 @@
   </style>
 </head>
 <body>
-
-  <audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
-  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileSidebar(false)"></div>
+<audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeAllSidebars()"></div>
 
   <div id="auth-view" class="modal-overlay">
     <div class="modal-card">
@@ -172,10 +190,13 @@
     <div class="workspace">
       <div class="header-bar">
         <div style="display: flex; align-items: center;">
-          <button class="mobile-menu-toggle" onclick="toggleMobileSidebar(true)">☰</button>
+          <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">☰</button>
           <h3 id="active-title">Arkadaş Ekle</h3>
         </div>
-        <div id="header-actions"></div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div id="header-actions"></div>
+          <button class="mobile-right-menu-toggle" id="mobile-right-toggle" onclick="toggleRightSidebar()">👥</button>
+        </div>
       </div>
       <div class="chat-layout-wrapper">
         <div id="add-friends-panel" class="content-panel">
@@ -1506,6 +1527,51 @@
         connectStream(); // fetches a short-lived stream token, then opens SSE; I-FRAME arrives over the socket
       }
     };
+
+    // Toggles the right sidebar
+function toggleRightSidebar(forceClose = false) {
+  const rs = document.querySelector('.right-sidebar');
+  if (!rs) return;
+
+  if (forceClose) {
+    rs.classList.remove('mobile-open');
+  } else {
+    rs.classList.toggle('mobile-open');
+  }
+  
+  updateOverlayState();
+}
+
+// Ensure the existing left sidebar toggle updates the global overlay state
+// Note: Find your existing toggleMobileSidebar and make sure it calls updateOverlayState() at the end, or replace it with this pattern:
+function toggleMobileSidebar(forceClose = false) {
+  const sidebar = document.querySelector('.sidebar');
+  if (forceClose) {
+    sidebar.classList.remove('mobile-open');
+  } else {
+    sidebar.classList.toggle('mobile-open');
+  }
+  updateOverlayState();
+}
+
+// Closes both sidebars when the background overlay is clicked
+function closeAllSidebars() {
+  toggleMobileSidebar(true);
+  toggleRightSidebar(true);
+}
+
+// Dynamically manages the background overlay based on whether ANY sidebar is open
+function updateOverlayState() {
+  const overlay = document.getElementById('sidebar-overlay');
+  const leftOpen = document.querySelector('.sidebar')?.classList.contains('mobile-open');
+  const rightOpen = document.querySelector('.right-sidebar')?.classList.contains('mobile-open');
+
+  if (leftOpen || rightOpen) {
+    overlay.style.display = 'block';
+  } else {
+    overlay.style.display = 'none';
+  }
+}
   </script>
 </body>
 </html>
