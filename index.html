@@ -67,8 +67,8 @@
     .msg-action-btn:hover { background: var(--accent); color: #fff; }
     .msg-action-btn.delete-btn:hover { background: var(--danger); color: #fff; }
     .sms-timestamp { font-size: calc(11px + var(--font-delta)); color: var(--text-muted); margin-top: 3px; margin-bottom: 4px; opacity: 0.85; }
-    .chat-img-wrapper { position: relative; display: inline-block; max-width: 280px; margin-top: 4px; }
-    .chat-img-attachment { max-width: 100%; max-height: 220px; border-radius: 10px; display: block; object-fit: contain; cursor: pointer; transition: transform 0.2s; }
+    .chat-img-wrapper { position: relative; display: inline-block; max-width: 280px; margin-top: 4px; min-width: 120px; min-height: 80px; }
+    .chat-img-attachment { max-width: 100%; max-height: 220px; border-radius: 10px; display: block; object-fit: contain; cursor: pointer; transition: transform 0.2s; background: rgba(255,255,255,0.04); min-height: 60px; }
     .chat-img-attachment:hover { transform: scale(1.01); }
     .chat-img-download-btn { position: absolute; top: 8px; right: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.2s, background 0.2s; z-index: 5; }
     .chat-img-wrapper:hover .chat-img-download-btn { opacity: 1; }
@@ -345,6 +345,33 @@
     let eventSource = null;
     let audioCtx, gainNode;
 
+    // ------------------------------------------------------------------
+    // Images now live in a separate D1 database (imgdb) behind the Worker.
+    // Message content for an image is a lightweight reference "img:<id>"
+    // instead of the raw base64. This cache holds resolved base64 by id
+    // so we only fetch each image once.
+    // ------------------------------------------------------------------
+    let imageCache = {};
+    function isImageRef(content) {
+      return typeof content === "string" && (content.startsWith("data:image/") || content.startsWith("img:"));
+    }
+    async function resolveImageContent(content) {
+      if (!content) return "";
+      if (content.startsWith("data:image/")) return content; // legacy inline images still work
+      if (content.startsWith("img:")) {
+        const id = content.split(":")[1];
+        if (imageCache[id]) return imageCache[id];
+        try {
+          const res = await fetch(`${BACKEND}/api/images/${id}`, { headers: { Authorization: token } });
+          if (!res.ok) return "";
+          const data = await res.json();
+          imageCache[id] = data.content;
+          return data.content;
+        } catch (e) { return ""; }
+      }
+      return "";
+    }
+
     // Simple LRU-ish cap so long sessions don't grow RAM without bound.
     const MAX_CACHED_GROUPS = 25;
     function touchCacheOrder(groupToken) {
@@ -465,7 +492,7 @@
       activeReplyTarget = { sender, content };
       const banner = document.getElementById("reply-banner");
       const text = document.getElementById("reply-banner-text");
-      const cleanContent = content.startsWith("data:image/") ? "📷 Görsel" : content;
+      const cleanContent = isImageRef(content) ? "📷 Görsel" : content;
       text.innerText = `Yanıtlanıyor: @${sender}: "${cleanContent.substring(0, 40)}${cleanContent.length > 40 ? '...' : ''}"`;
       banner.classList.remove("hidden");
     }
@@ -570,8 +597,6 @@
         localStorage.setItem("pfp", base64);
         renderUserAvatar(currentUser, base64);
         displayFeedback("pfp-feedback", "Profil resmi başarıyla güncellendi!", true);
-        // patch our own pfp everywhere in cache instead of re-fetching snapshot
-        cachedFriends.forEach(f => { if (f.user1 === currentUser || f.user2 === currentUser) {} });
       } else {
         displayFeedback("pfp-feedback", data.error, false);
       }
@@ -682,6 +707,8 @@
           while (base64.length > MAX_IMAGE_BYTES && quality > 0.1) { quality -= 0.08; base64 = canvas.toDataURL("image/jpeg", quality); }
           if (base64.length > MAX_IMAGE_BYTES) { displayFeedback("chat-feedback", "Görsel boyutu 1MB sınırını aşıyor!", false); return; }
           displayFeedback("chat-feedback", "", true);
+          // Sent as raw base64 — the server stores it in imgdb and swaps in
+          // an "img:<id>" reference before broadcasting/saving the message.
           sendChatMessagePayload(base64);
           input.value = "";
         };
@@ -1199,7 +1226,7 @@
         let lastMsgTime = "";
         group.messages.forEach((msg, idx) => {
           const isLast = idx === group.messages.length - 1;
-          const isImage = msg.content.startsWith("data:image/");
+          const isImage = isImageRef(msg.content);
           const msgTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           if (isLast) lastMsgTime = msgTime;
 
@@ -1225,7 +1252,7 @@
           if (!isLast) bubble.style.marginBottom = "4px";
 
           if (msg.reply_to_sender) {
-            const cleanReplyText = msg.reply_to_content.startsWith("data:image/") ? "📷 Görsel" : msg.reply_to_content;
+            const cleanReplyText = isImageRef(msg.reply_to_content) ? "📷 Görsel" : msg.reply_to_content;
             const replyBox = document.createElement("div");
             replyBox.style.cssText = "font-size: calc(var(--chat-font-size) * 0.785); opacity: 0.7; border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px; border-radius: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;";
             const strong = document.createElement("strong"); strong.innerText = `@${msg.reply_to_sender}`;
@@ -1237,11 +1264,20 @@
           if (isImage) {
             const imgWrap = document.createElement("div"); imgWrap.className = "chat-img-wrapper";
             const imgEl = document.createElement("img");
-            imgEl.className = "chat-img-attachment"; imgEl.src = msg.content; imgEl.title = "Görseli Büyüt"; imgEl.draggable = false;
-            imgEl.onclick = () => openImageInspector(msg.content);
+            imgEl.className = "chat-img-attachment"; imgEl.title = "Görseli Büyüt"; imgEl.draggable = false;
+            imgEl.alt = "Yükleniyor...";
             const dlBtn = document.createElement("button");
             dlBtn.className = "chat-img-download-btn"; dlBtn.title = "Görseli İndir"; dlBtn.innerText = "⬇";
-            dlBtn.onclick = (e) => { e.stopPropagation(); downloadImage(msg.content, `gorsel_${msg.created_at}.jpg`); };
+
+            // Resolve async — "data:image/..." resolves instantly, "img:<id>"
+            // fetches once and is cached for the rest of the session.
+            resolveImageContent(msg.content).then(src => {
+              if (!src) return;
+              imgEl.src = src;
+              imgEl.onclick = () => openImageInspector(src);
+              dlBtn.onclick = (e) => { e.stopPropagation(); downloadImage(src, `gorsel_${msg.created_at}.jpg`); };
+            });
+
             imgWrap.appendChild(imgEl); imgWrap.appendChild(dlBtn);
             bubble.appendChild(imgWrap);
           } else {
