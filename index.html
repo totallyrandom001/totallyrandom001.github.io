@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>SOPERT Sohbet Platformu</title>
+  <title>SOPERT</title>
   <style>
     :root {
       --bg-main: #0f172a;
@@ -1404,12 +1404,17 @@
 
     async function loadGroupMembers(groupToken) {
       const res = await fetch(`${BACKEND}/api/groups/${groupToken}/members`, { headers: { "Authorization": token } });
-      if (!res.ok) return;
-      const data = await res.json();
       
+      // RACE CONDITION GUARD: Yanıt geldiğinde kullanıcı başka gruptaysa işlemi durdur
+      if (groupToken !== activeGroupToken) return;
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (groupToken !== activeGroupToken) return;
+
       const groupInfo = data.groupInfo || {};
       const members = data.members || [];
-      cachedGroupMembers = members.map(m => m.username); // Gruptaki üyeler önbelleğe alındı
+      cachedGroupMembers = members.map(m => m.username);
 
       const isOwner = groupInfo.created_by === currentUser || currentRole === "admin";
 
@@ -1497,8 +1502,14 @@
 
     async function loadMessages(groupToken) {
       const res = await fetch(`${BACKEND}/api/messages/${groupToken}`, { headers: { "Authorization": token } });
+      
+      // RACE CONDITION GUARD: Yanıt geldiğinde aktif sohbet değiştiyse işlemi durdur
+      if (groupToken !== activeGroupToken) return;
       if (!res.ok) return;
+
       const msgs = await res.json();
+      if (groupToken !== activeGroupToken) return;
+
       const container = document.getElementById("chat-messages-panel");
       container.innerHTML = "";
 
