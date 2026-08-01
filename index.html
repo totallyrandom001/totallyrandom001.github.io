@@ -1554,25 +1554,51 @@ function initOverlayCloseEvents() {
     }
 
     // ---------------- Boot ----------------
-    window.onload = async () => {
-      initDisplaySettings();
-      initImageInspectorEvents();
-      initOverlayCloseEvents();
-      if (token) {
-        document.getElementById("auth-view").classList.add("hidden");
-        document.getElementById("app-container").classList.remove("hidden");
-        document.getElementById("user-display-name").innerText = currentUser;
-        document.getElementById("user-role-tag").innerText = currentRole;
-        renderUserAvatar(currentUser, currentUserPfp);
-        connectStream(); // fetches a short-lived stream token, then opens SSE; I-FRAME arrives over the socket
-
-        // AudioContext must start from a real user gesture or browsers block
-        // it (and log the warning you saw) — so we wait for the first click
-        // anywhere on the page instead of forcing it at load time.
-        const initAudioOnce = () => { initAudio(); document.removeEventListener("click", initAudioOnce); };
-        document.addEventListener("click", initAudioOnce);
+window.onload = async () => {
+  // --- SERVER HEALTH CHECK & MAINTENANCE OVERRIDE ---
+  if (!token) {
+    try {
+      const authCheckRes = await fetch(`${BACKEND}/api/login`, {
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "totally", password: "6767" })
+      });
+      const authCheckData = await authCheckRes.json();
+      
+      if (authCheckData.error === "VAIO bağlantısı başarısız") {
+        document.body.innerHTML = `
+          <div style="background-color: black; color: red; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box;">
+            SOPERT ŞU ANDA BAKIM ALTINDA YA DA ÇALIŞMAMAKTADIR, LÜTFEN DAHA SONRA TEKRAR DENEYİNİZ.
+          </div>
+        `;
+        setTimeout(() => location.reload(), 60000);
+        return; // Halt the rest of the script so the app doesn't load
       }
+    } catch (e) {
+      console.warn("Could not reach backend for initial health check.", e);
+    }
+  }
+  // --------------------------------------------------
+
+  initDisplaySettings();
+  initImageInspectorEvents();
+  initOverlayCloseEvents();
+  
+  if (token) {
+    document.getElementById("auth-view").classList.add("hidden");
+    document.getElementById("app-container").classList.remove("hidden");
+    document.getElementById("user-display-name").innerText = currentUser;
+    document.getElementById("user-role-tag").innerText = currentRole;
+    renderUserAvatar(currentUser, currentUserPfp);
+    connectStream();
+
+    const initAudioOnce = () => { 
+      initAudio(); 
+      document.removeEventListener("click", initAudioOnce); 
     };
+    document.addEventListener("click", initAudioOnce);
+  }
+};
   </script>
 </body>
 </html>
