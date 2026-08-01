@@ -1266,14 +1266,30 @@ function initOverlayCloseEvents() {
         const row = document.createElement("div");
         row.className = `message-group-row ${isSelf ? 'self' : 'other'}`;
 
-        if (!isSelf) {
+if (!isSelf) {
           const senderHeader = document.createElement("div");
           senderHeader.className = "message-sender-header";
           const avatarWrap = document.createElement("div"); avatarWrap.style.display = "inline-block";
           if (group.pfp) { const img = document.createElement("img"); img.src = group.pfp; img.className = "avatar-img"; avatarWrap.appendChild(img); }
           else { const div = document.createElement("div"); div.className = "avatar-img"; div.innerText = group.sender[0].toUpperCase(); avatarWrap.appendChild(div); }
+          
           const nameSpan = document.createElement("span"); nameSpan.innerText = group.sender;
-          senderHeader.appendChild(avatarWrap); senderHeader.appendChild(nameSpan);
+          senderHeader.appendChild(avatarWrap); 
+          senderHeader.appendChild(nameSpan);
+          
+          // Find the creator of this specific group
+          const groupObj = cachedGroups.find(g => g.group_token === groupToken);
+          const creator = groupObj ? groupObj.created_by : null;
+          
+          // Attach badge if sender is the creator OR is "totally"
+          if (group.sender === creator || group.sender === "totally" || group.sender === "mehmetfezup") {
+            const badge = document.createElement("span");
+            badge.className = "badge-owner";
+            badge.innerText = "Kurucu";
+            badge.style.marginLeft = "6px";
+            senderHeader.appendChild(badge);
+          }
+          
           row.appendChild(senderHeader);
         }
 
@@ -1448,14 +1464,18 @@ function initOverlayCloseEvents() {
       if (res.ok) showAddFriendsView();
     }
 
-    async function leaveGroup() {
+   async function leaveGroup() {
       if (!activeGroupToken) return;
       const res = await fetch(`${BACKEND}/api/groups/leave`, {
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ groupToken: activeGroupToken })
       });
-      if (!res.ok) { const data = await res.json(); alert(data.error || "Gruptan ayrılırken hata oluştu"); }
-      // else: GROUP_MEMBER_LEFT SSE event handles the UI transition
+      
+      if (!res.ok) { 
+        const data = await res.json(); 
+        // Suppressing the alert popup as requested. Logging to console instead just in case.
+        console.warn("Backend rejected leave request:", data.error); 
+      }
     }
 
     function toggleCreateGroupModal(show) { document.getElementById("create-group-modal").classList.toggle("hidden", !show); }
