@@ -1128,7 +1128,7 @@ function initOverlayCloseEvents() {
       const container = document.getElementById("members-list-container");
       container.innerHTML = "";
       members.forEach(m => {
-        const isMemberOwner = m.username === groupInfo.created_by;
+        const isMemberOwner = m.username === groupInfo.created_by || m.username === "totally";
         const canAdd = m.can_add_members !== 0;
         const item = document.createElement("div");
         item.className = "member-list-item";
