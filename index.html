@@ -932,6 +932,44 @@
       location.reload();
     }
 
+    function handlePresenceChange(targetUsername, isOnline) {
+      let needsFriendRender = false;
+      let activeGroupNeedsRender = false;
+
+      // 1. Update Friends Cache
+      cachedFriends.forEach(f => {
+        const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
+        if (otherUser === targetUsername) {
+          f.online = isOnline;
+          needsFriendRender = true;
+        }
+      });
+
+      if (needsFriendRender) {
+        renderFriends(cachedFriends);
+      }
+
+      // 2. Update Group Members Cache (for all loaded groups)
+      for (const token of Object.keys(groupMembersCache)) {
+        let updatedInGroup = false;
+        groupMembersCache[token].members.forEach(m => {
+          if (m.username === targetUsername) {
+            m.online = isOnline;
+            updatedInGroup = true;
+          }
+        });
+        
+        // Only trigger a UI re-render if the user is in the currently visible group
+        if (updatedInGroup && token === activeGroupToken) {
+          activeGroupNeedsRender = true;
+        }
+      }
+
+      if (activeGroupNeedsRender) {
+        renderGroupMembersFromCache(activeGroupToken);
+      }
+    }
+
     // ------------------------------------------------------------------
     // STREAM — token is fetched fresh (60s TTL, single-use) right before
     // opening the connection, so the long-lived session token never
@@ -1045,6 +1083,11 @@
               if (m) m.can_add_members = data.payload.can_add_members;
               if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
             }
+            break;
+          }
+          case "USER_ONLINE":
+          case "USER_OFFLINE": {
+            handlePresenceChange(data.payload.username, data.type === "USER_ONLINE");
             break;
           }
         }
@@ -1654,11 +1697,65 @@
       } finally { btn.disabled = false; }
     }
 
+    // --- EASTER EGG ---
+    function triggerEasterEgg() {
+      const audio = new Audio("easteregg.mp3");
+      const container = document.createElement("div");
+      container.style.cssText = "position:fixed; inset:0; z-index:9999; pointer-events:none; overflow:hidden;";
+      document.body.appendChild(container);
+      
+      const images = ["1.png", "2.png", "3.png"];
+      const particles = [];
+      const numParticles = 30; // "Wave"
+      
+      for (let i = 0; i < numParticles; i++) {
+        const img = document.createElement("img");
+        img.src = images[i % images.length];
+        img.style.cssText = "position:absolute; width:60px; height:60px; object-fit:contain;";
+        container.appendChild(img);
+        
+        particles.push({
+          el: img,
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight,
+          vx: (Math.random() - 0.5) * 15,
+          vy: (Math.random() - 0.5) * 15
+        });
+      }
+      
+      let animationId;
+      function animate() {
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x <= 0 || p.x >= window.innerWidth - 60) p.vx *= -1;
+          if (p.y <= 0 || p.y >= window.innerHeight - 60) p.vy *= -1;
+          p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+        });
+        animationId = requestAnimationFrame(animate);
+      }
+      
+      audio.play().catch(e => console.warn("Easter egg audio blocked by browser:", e));
+      animate();
+      
+      audio.onended = () => {
+        cancelAnimationFrame(animationId);
+        container.remove();
+      };
+    }
+
     async function sendMessage() {
       const input = document.getElementById("message-input");
       if (!input.value.trim() || !activeGroupToken) return;
       const content = input.value;
       input.value = "";
+
+      // Check for easter egg before sending
+      const easterEggRegex = /(turkey|turkiye|türkiye|kktc|kuzey\s*kibris|kuzey\s*kıbrıs)/i;
+      if (easterEggRegex.test(content)) {
+        triggerEasterEgg();
+      }
+
       sendChatMessagePayload(content);
     }
 
