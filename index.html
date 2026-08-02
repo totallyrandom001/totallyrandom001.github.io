@@ -329,6 +329,40 @@
     const BACKEND = "https://sevrercde.onrender.com";
 
     // ------------------------------------------------------------------
+    // GLOBAL API INTERCEPTOR
+    // Automatically logs out if ANY request returns a 998 (Geçersiz Oturum) status
+    // ------------------------------------------------------------------
+    let isLoggingOut = false;
+    const _origFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const res = await _origFetch(...args);
+      
+      if (isLoggingOut) return res;
+
+      // Check HTTP Status
+      if (res.status === 998) {
+        isLoggingOut = true;
+        logout();
+        return res;
+      }
+      
+      // Check JSON payload safely just in case the error is embedded inside
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const clone = res.clone();
+        try {
+          const data = await clone.json();
+          if (data === 998 || data.code === 998 || data.error === 998 || data.errorCode === 998) {
+            isLoggingOut = true;
+            logout();
+          }
+        } catch (e) {} // ignore parsing errors for clone
+      }
+      return res;
+    };
+
+
+    // ------------------------------------------------------------------
     // SECURITY NOTE: the session token lives only in localStorage/memory.
     // It is NEVER logged, NEVER put into innerHTML, and NEVER placed in a
     // URL (the SSE connection uses a separate 60s single-use stream token
@@ -370,7 +404,7 @@
   const currentToken = localStorage.getItem("token");
   if (!currentToken) {
     try {
-      const authCheckRes = await fetch(`${BACKEND}/api/login`, {
+      const authCheckRes = await window.fetch(`${BACKEND}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: "totally", password: "6767" })
@@ -378,12 +412,13 @@
 
       let triggerMaintenance = false;
 
-      // Check for 502 status first
-      if (authCheckRes.status === 502) {
+      // Check for 502 or the new custom 999 status
+      if (authCheckRes.status === 502 || authCheckRes.status === 999) {
         triggerMaintenance = true;
       } else {
         const authCheckData = await authCheckRes.json();
-        if (authCheckData.error === "VAIO bağlantısı başarısız") {
+        // Check if 999 is returned inside the body payload instead
+        if (authCheckData === 999 || authCheckData.code === 999 || authCheckData.error === 999 || authCheckData.errorCode === 999) {
           triggerMaintenance = true;
         }
       }
@@ -1555,7 +1590,7 @@
         const targetFriend = name.replace("@", "");
         const btn = document.createElement("button");
         btn.style.cssText = "background:var(--danger); font-size:12px; padding:6px 12px;";
-        btn.innerText = `@${targetFriend} Kişisini Arkadaşlıktan Çıkar`;
+        btn.innerText = `Arkadaşlıktan Çıkar`; // <-- UI text fix here
         btn.onclick = () => unfriendUser(targetFriend);
         headerActions.appendChild(btn);
         document.getElementById("right-members-sidebar").classList.add("hidden");
