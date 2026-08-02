@@ -50,13 +50,13 @@
     .right-sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-weight: bold; font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 8px; }
     .member-list-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 6px; }
     .member-list-item:hover { background: var(--bg-card); }
-    .message-group-row { display: flex; flex-direction: column; width: 100%; margin-bottom: 12px; }
+    .message-group-row { display: flex; flex-direction: column; width: 100%; margin-bottom: 6px; }
     .message-group-row.self { align-items: flex-end; }
     .message-group-row.other { align-items: flex-start; }
     .message-sender-header { font-size: calc(12px + var(--font-delta)); color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
     .message-sender-header .avatar-img { width: calc(20px + var(--font-delta)) !important; height: calc(20px + var(--font-delta)) !important; font-size: calc(10px + var(--font-delta)) !important; }
     .sms-bubble-wrapper { position: relative; display: flex; flex-direction: column; max-width: 75%; }
-    .sms-bubble { width: 100%; padding: 10px 14px; font-size: var(--chat-font-size); line-height: 1.4; word-break: break-word; position: relative; display: flex; flex-direction: column; }
+    .sms-bubble { width: 100%; padding: 10px 14px; font-size: var(--chat-font-size); line-height: 1.4; word-break: break-word; position: relative; display: flex; flex-direction: column; user-select: text; -webkit-user-select: text; }
     .message-group-row.self .sms-bubble { background: var(--accent); color: #ffffff; border-radius: 18px 18px 4px 18px; }
     .message-group-row.other .sms-bubble { background: var(--bg-card); color: var(--text-bright); border-radius: 18px 18px 18px 4px; border: 1px solid #475569; }
     .msg-action-bar { position: absolute; top: 50%; transform: translateY(-50%); display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; z-index: 10; }
@@ -88,6 +88,7 @@
     .feedback-slot.error { color: var(--danger); }
     .chat-input-container { padding: 14px 24px; padding-bottom: max(14px, env(safe-area-inset-bottom)); background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
     #reply-banner { background: #0f172a; border: 1px solid #334155; border-left: 3px solid var(--accent); padding: 6px 12px; border-radius: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .typing-indicator-bar { font-size: 12px; color: var(--accent); min-height: 18px; margin-bottom: 2px; font-weight: 500; font-style: italic; display: flex; align-items: center; }
     .chat-input-row { display: flex; gap: 12px; align-items: center; width: 100%; }
     .chat-input-row input[type="text"] { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px 16px; border-radius: 8px; color: white; outline: none; margin: 0; user-select: text; }
     .attach-btn { background: var(--bg-card); border: 1px solid #475569; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; }
@@ -188,7 +189,10 @@
       <div class="header-bar">
         <div style="display: flex; align-items: center;">
           <button class="mobile-menu-toggle" onclick="toggleMobileSidebar(true)">☰</button>
-          <h3 id="active-title">Arkadaş Ekle</h3>
+          <div style="display: flex; flex-direction: column;">
+            <h3 id="active-title">Arkadaş Ekle</h3>
+            <span id="active-subtitle" class="hidden" style="font-size: 11px; margin-top: 2px;"></span>
+          </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
           <button id="mobile-members-toggle-btn" class="mobile-members-toggle hidden" onclick="toggleMobileMembersSidebar(true)" title="Üyeler">👥</button>
@@ -225,10 +229,11 @@
           <span id="reply-banner-text" style="color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
           <button onclick="cancelReply()" style="background: transparent; border: none; color: var(--danger); font-weight: bold; cursor: pointer; padding: 0 4px;">✕</button>
         </div>
+        <div id="typing-indicator-bar" class="typing-indicator-bar"></div>
         <div class="chat-input-row">
           <button class="attach-btn" title="Görsel Gönder (Maks 1MB)" onclick="document.getElementById('chat-img-input').click()">📷</button>
           <input type="file" id="chat-img-input" accept="image/*" class="hidden" onchange="processAndSendImageMessage(this)">
-          <input type="text" id="message-input" placeholder="Bir mesaj yazın..." onkeydown="if(event.key==='Enter') sendMessage()">
+          <input type="text" id="message-input" placeholder="Bir mesaj yazın..." oninput="onMessageInput()" onkeydown="if(event.key==='Enter') sendMessage()">
           <button onclick="sendMessage()">Gönder</button>
         </div>
         <div id="chat-feedback" class="feedback-slot" style="min-height:0;"></div>
@@ -379,7 +384,7 @@
     // ------------------------------------------------------------------
     let chatMessagesCache = {};
     let groupMembersCache = {}; // groupToken -> { groupInfo, members }
-    let onlineMap = {};         // NEW: Global state for user presence (username -> boolean)
+    let onlineMap = {};         // Global state for user presence (username -> boolean)
 
     let acceptedFriendsCache = [];
     let cachedGroupMembers = [];
@@ -389,6 +394,12 @@
     let activeReplyTarget = null;
     let eventSource = null;
     let audioCtx, gainNode;
+
+    // TYPING STATE
+    let typingTimeout = null;
+    let lastSentTyping = 0;
+    const typingTimers = {}; // username -> timeout ID
+    const currentTypers = new Set(); // usernames currently typing in active group
 
     let imageCache = {};
     function isImageRef(content) {
@@ -468,12 +479,6 @@
         const evict = keys.slice(0, keys.length - MAX_CACHED_GROUPS);
         evict.forEach(k => { if (k !== activeGroupToken) delete chatMessagesCache[k]; });
       }
-    }
-
-    function escapeHtml(str) {
-      const d = document.createElement("div");
-      d.innerText = str;
-      return d.innerHTML;
     }
 
     function handleRegUsernameInput(value) {
@@ -784,13 +789,61 @@
       });
     }
 
+    // ------------------------------------------------------------------
+    // TYPING INDICATOR LOGIC
+    // ------------------------------------------------------------------
+    function onMessageInput() {
+      if (!activeGroupToken) return;
+      const now = Date.now();
+      if (now - lastSentTyping > 1500) {
+        sendTyping(activeGroupToken, true);
+        lastSentTyping = now;
+      }
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        sendTyping(activeGroupToken, false);
+      }, 3000);
+    }
+
+    function sendTyping(groupToken, isTyping) {
+      fetch(`${BACKEND}/api/typing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": token },
+        body: JSON.stringify({ groupToken, isTyping })
+      });
+    }
+
+    function clearTyping() {
+      if (!activeGroupToken) return;
+      clearTimeout(typingTimeout);
+      sendTyping(activeGroupToken, false);
+      lastSentTyping = 0;
+    }
+
+    function renderTypingUI() {
+      const bar = document.getElementById("typing-indicator-bar");
+      if (!bar) return;
+      if (currentTypers.size === 0) {
+        bar.innerText = "";
+        return;
+      }
+      const typers = Array.from(currentTypers);
+      if (typers.length === 1) {
+        bar.innerText = `${typers[0]} yazıyor...`;
+      } else if (typers.length === 2) {
+        bar.innerText = `${typers[0]} ve ${typers[1]} yazıyor...`;
+      } else {
+        bar.innerText = `${typers.length} kişi yazıyor...`;
+      }
+    }
+
     function processAndSendImageMessage(input) {
       if (!input.files.length || !activeGroupToken) return;
       const file = input.files[0];
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
-        img.onload = () => {
+        img.onload = async () => {
           const canvas = document.createElement("canvas");
           let width = img.width, height = img.height;
           const maxDim = 1200;
@@ -805,6 +858,7 @@
           const MAX_IMAGE_BYTES = 1024 * 1024;
           while (base64.length > MAX_IMAGE_BYTES && quality > 0.1) { quality -= 0.08; base64 = canvas.toDataURL("image/jpeg", quality); }
           if (base64.length > MAX_IMAGE_BYTES) { displayFeedback("chat-feedback", "Görsel boyutu 1MB sınırını aşıyor!", false); return; }
+          
           displayFeedback("chat-feedback", "", true);
           sendChatMessagePayload(base64);
           input.value = "";
@@ -818,7 +872,8 @@
       if (!activeGroupToken) return;
       const replyData = activeReplyTarget ? { ...activeReplyTarget } : null;
       cancelReply();
-      await fetch(`${BACKEND}/api/messages/send`, {
+      
+      const res = await fetch(`${BACKEND}/api/messages/send`, {
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({
           groupToken: activeGroupToken, content,
@@ -826,6 +881,11 @@
           replyToContent: replyData ? replyData.content : null
         })
       });
+
+      if (!res.ok) {
+        const data = await res.json();
+        displayFeedback("chat-feedback", data.error || "Mesaj gönderilemedi", false);
+      }
     }
 
     async function deleteMessage(messageId, createdAt) {
@@ -924,16 +984,21 @@
       location.reload();
     }
 
-    // ------------------------------------------------------------------
-    // LIVE PRESENCE HANDLER
-    // Selects elements via data attribute and dynamically swaps CSS class
-    // ------------------------------------------------------------------
     function handlePresenceChange(targetUsername, isOnline) {
       onlineMap[targetUsername] = isOnline;
+      
+      // Update sidebar badges
       document.querySelectorAll(`.status-badge[data-user="${CSS.escape(targetUsername)}"]`).forEach(badge => {
         badge.classList.toggle("online", isOnline);
         badge.classList.toggle("offline", !isOnline);
       });
+
+      // Update DM Header if it is open
+      const dmSub = document.getElementById("active-subtitle");
+      if (dmSub && dmSub.getAttribute("data-dm-user") === targetUsername && !dmSub.classList.contains("hidden")) {
+        dmSub.innerText = isOnline ? "Çevrimiçi" : "Çevrimdışı";
+        dmSub.style.color = isOnline ? "var(--success)" : "var(--text-muted)";
+      }
     }
 
     async function connectStream() {
@@ -1009,7 +1074,7 @@
             const mine = data.payload.friendRowFor[currentUser];
             if (mine) {
               const otherUser = mine.user1 === currentUser ? mine.user2 : mine.user1;
-              if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; // Safe offline default for new friends
+              if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; 
               
               const idx = cachedFriends.findIndex(f =>
                 (f.user1 === mine.user1 && f.user2 === mine.user2) || (f.user1 === mine.user2 && f.user2 === mine.user1));
@@ -1030,7 +1095,7 @@
             if (groupMembersCache[gt]) {
               groupMembersCache[gt].members.push(data.payload.newMember);
               if (!(data.payload.newMember.username in onlineMap)) {
-                  onlineMap[data.payload.newMember.username] = false; // Safe offline default 
+                  onlineMap[data.payload.newMember.username] = false; 
               }
               if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
             }
@@ -1072,6 +1137,25 @@
             handlePresenceChange(data.payload.username, data.payload.online);
             break;
           }
+          case "TYPING": {
+            const { groupToken, username, isTyping } = data.payload;
+            if (groupToken !== activeGroupToken) break; 
+            if (username === currentUser) break; 
+
+            if (isTyping) {
+              currentTypers.add(username);
+              clearTimeout(typingTimers[username]);
+              typingTimers[username] = setTimeout(() => {
+                currentTypers.delete(username);
+                renderTypingUI();
+              }, 5000);
+            } else {
+              currentTypers.delete(username);
+              clearTimeout(typingTimers[username]);
+            }
+            renderTypingUI();
+            break;
+          }
         }
       };
 
@@ -1107,7 +1191,6 @@
           if (f.pfp) { const img = document.createElement("img"); img.src = f.pfp; img.className = "avatar-img"; img.style.cssText = "width:28px;height:28px;"; avatarWrap.appendChild(img); }
           else { const div = document.createElement("div"); div.className = "avatar-img"; div.style.cssText = "width:28px;height:28px;font-size:11px;"; div.innerText = otherUser[0].toUpperCase(); avatarWrap.appendChild(div); }
           
-          // Add the status badge + data-user target attribute
           const statusBadge = document.createElement("div");
           statusBadge.className = `status-badge ${onlineMap[otherUser] ? 'online' : 'offline'}`;
           statusBadge.setAttribute("data-user", otherUser);
@@ -1167,7 +1250,6 @@
       const data = await res.json();
       if (groupToken !== activeGroupToken) return;
 
-      // Update online map from fetched members just in case
       if (data.members) {
         data.members.forEach(m => {
            if (!(m.username in onlineMap)) onlineMap[m.username] = m.online;
@@ -1232,7 +1314,6 @@
           avatarWrap.appendChild(div); 
         }
         
-        // Setup Live Online Indicator 
         const statusBadge = document.createElement("div");
         const isOnline = m.username === currentUser ? true : !!onlineMap[m.username];
         statusBadge.className = `status-badge ${isOnline ? 'online' : 'offline'}`;
@@ -1444,9 +1525,8 @@
             const cleanReplyText = isImageRef(msg.reply_to_content) ? "📷 Görsel" : msg.reply_to_content;
             const replyBox = document.createElement("div");
             replyBox.style.cssText = "font-size: calc(var(--chat-font-size) * 0.785); opacity: 0.7; border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px; border-radius: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;";
-            const strong = document.createElement("strong"); strong.innerText = `@${msg.reply_to_sender}`;
-            replyBox.appendChild(strong);
-            replyBox.appendChild(document.createTextNode(`: ${cleanReplyText}`));
+            // Use innerHTML safely here, as backend handles escaping
+            replyBox.innerHTML = `<strong>@${msg.reply_to_sender}</strong>: ${cleanReplyText}`;
             bubble.appendChild(replyBox);
           }
 
@@ -1470,7 +1550,7 @@
             bubble.appendChild(imgWrap);
           } else {
             const textSpan = document.createElement("span");
-            textSpan.innerText = msg.content;
+            textSpan.innerHTML = msg.content; // Use innerHTML to properly render server-escaped text
             bubble.appendChild(textSpan);
           }
 
@@ -1492,6 +1572,7 @@
       activeGroupToken = "";
       document.getElementById("btn-add-friends-tab").classList.add("active");
       document.getElementById("active-title").innerText = "Arkadaş Ekle";
+      document.getElementById("active-subtitle").classList.add("hidden");
       document.getElementById("header-actions").innerHTML = "";
       document.getElementById("add-friends-panel").classList.remove("hidden");
       document.getElementById("chat-messages-panel").classList.add("hidden");
@@ -1501,14 +1582,21 @@
       toggleMobileSidebar(false);
       toggleMobileMembersSidebar(false);
       document.getElementById("mobile-members-toggle-btn").classList.add("hidden");
+      
+      // Clear typing indicator state
+      currentTypers.clear();
+      renderTypingUI();
     }
 
     async function selectGroup(groupToken, name) {
       activeGroupToken = groupToken;
       unreadCounts[groupToken] = 0;
+      
+      // Clear typing states when switching chats
+      currentTypers.clear();
+      renderTypingUI();
 
       document.getElementById("btn-add-friends-tab").classList.remove("active");
-      document.getElementById("active-title").innerText = name;
       document.getElementById("add-friends-panel").classList.add("hidden");
       document.getElementById("chat-messages-panel").classList.remove("hidden");
       document.getElementById("chat-input-area").classList.remove("hidden");
@@ -1520,7 +1608,11 @@
       headerActions.innerHTML = "";
       toggleMobileMembersSidebar(false);
       const membersToggleBtn = document.getElementById("mobile-members-toggle-btn");
+      
       if (!name.startsWith("@")) {
+        document.getElementById("active-title").innerText = name;
+        document.getElementById("active-subtitle").classList.add("hidden");
+        
         const btn = document.createElement("button");
         btn.style.cssText = "background:var(--danger); font-size:12px; padding:6px 12px;";
         btn.innerText = "Gruptan Ayrıl"; btn.onclick = leaveGroup;
@@ -1530,6 +1622,16 @@
         loadGroupMembers(groupToken);
       } else {
         const targetFriend = name.replace("@", "");
+        document.getElementById("active-title").innerText = `@${targetFriend}`;
+        
+        // Render DM Presence Text
+        const sub = document.getElementById("active-subtitle");
+        sub.classList.remove("hidden");
+        const isOnline = !!onlineMap[targetFriend];
+        sub.innerText = isOnline ? "Çevrimiçi" : "Çevrimdışı";
+        sub.style.color = isOnline ? "var(--success)" : "var(--text-muted)";
+        sub.setAttribute("data-dm-user", targetFriend);
+        
         const btn = document.createElement("button");
         btn.style.cssText = "background:var(--danger); font-size:12px; padding:6px 12px;";
         btn.innerText = `Arkadaşlıktan Çıkar`; 
@@ -1724,6 +1826,8 @@
       if (!input.value.trim() || !activeGroupToken) return;
       const content = input.value;
       input.value = "";
+      
+      clearTyping(); // Stop typing indicator broadcast instantly
 
       const easterEggRegex = /(turkey|turkiye|türkiye|kktc|kuzey\s*kibris|kuzey\s*kıbrıs)/i;
       if (easterEggRegex.test(content)) {
