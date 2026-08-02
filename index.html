@@ -15,1909 +15,629 @@
       --text-muted: #94a3b8;
       --danger: #ef4444;
       --success: #10b981;
-      --ui-scale: 1;
-      --chat-font-size: 14px;
-      --font-delta: 0px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
-    html { font-size: calc(16px * var(--ui-scale)); }
-    body { background: var(--bg-main); color: var(--text-bright); height: 100vh; height: 100dvh; overflow: hidden; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: var(--bg-main); color: var(--text-bright); height: 100vh; overflow: hidden; display: flex; }
     .hidden { display: none !important; }
-    img { -webkit-user-drag: none; user-drag: none; }
-    #app-container { display: flex; width: 100vw; height: 100vh; height: 100dvh; position: relative; }
-    .sidebar { width: 280px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 50; }
-    .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; display: none; }
-    .user-profile-card { padding: 16px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
-    .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; color: white; border: 2px solid var(--accent); flex-shrink: 0; }
-    .nav-btn { width: 100%; padding: 12px 16px; background: transparent; color: var(--text-bright); border: none; text-align: left; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; }
-    .nav-btn:hover, .nav-btn.active { background: var(--bg-card); color: var(--accent-hover); }
-    .category-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 6px; font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; }
-    .add-btn-icon { background: var(--accent); color: white; border: none; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
-    .add-btn-icon:hover { background: var(--accent-hover); }
-    .list-container { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
-    .list-container-sub { max-height: 180px; overflow-y: auto; padding: 0 8px; margin-bottom: 8px; }
-    .list-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; transition: 0.2s; font-size: 14px; }
+    
+    /* Login Screen */
+    #auth-view { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal-card { background: var(--bg-sidebar); padding: 28px; border-radius: 12px; width: 340px; border: 1px solid #334155; text-align: center; }
+    .modal-card input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #334155; background: var(--bg-main); color: white; }
+    .modal-card button { width: 100%; padding: 10px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .modal-card button:hover { background: var(--accent-hover); }
+    
+    /* Layout */
+    #sidebar { width: 280px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; }
+    .category-header { padding: 12px 16px 6px; font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; }
+    .list-container { flex: 1; overflow-y: auto; padding: 0 8px; margin-bottom: 8px; }
+    .list-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; font-size: 14px; position: relative; }
     .list-item:hover { background: var(--bg-card); }
     .list-item.active { background: var(--accent); color: white; }
-    .unread-badge { background: var(--danger); color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
-    .workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); width: 100%; height: 100%; overflow: hidden; }
-    .header-bar { height: 60px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: var(--bg-sidebar); flex-shrink: 0; }
-    .mobile-menu-toggle { display: none; background: transparent; border: none; color: var(--text-bright); font-size: 20px; cursor: pointer; margin-right: 12px; }
-    .mobile-members-toggle { display: none; background: transparent; border: none; color: var(--text-bright); font-size: 20px; cursor: pointer; }
-    .chat-layout-wrapper { flex: 1; display: flex; overflow: hidden; position: relative; min-height: 0; }
-    .content-panel { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-    .right-sidebar { width: 260px; background: var(--bg-sidebar); border-left: 1px solid #334155; display: flex; flex-direction: column; padding: 16px; }
-    .right-sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-weight: bold; font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 8px; }
-    .member-list-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 6px; }
-    .member-list-item:hover { background: var(--bg-card); }
-    .message-group-row { display: flex; flex-direction: column; width: 100%; margin-bottom: 6px; }
-    .message-group-row.self { align-items: flex-end; }
-    .message-group-row.other { align-items: flex-start; }
-    .message-sender-header { font-size: calc(12px + var(--font-delta)); color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-    .message-sender-header .avatar-img { width: calc(20px + var(--font-delta)) !important; height: calc(20px + var(--font-delta)) !important; font-size: calc(10px + var(--font-delta)) !important; }
-    .sms-bubble-wrapper { position: relative; display: flex; flex-direction: column; max-width: 75%; }
-    .sms-bubble { width: 100%; padding: 10px 14px; font-size: var(--chat-font-size); line-height: 1.4; word-break: break-word; position: relative; display: flex; flex-direction: column; user-select: text; -webkit-user-select: text; }
-    .message-group-row.self .sms-bubble { background: var(--accent); color: #ffffff; border-radius: 18px 18px 4px 18px; }
-    .message-group-row.other .sms-bubble { background: var(--bg-card); color: var(--text-bright); border-radius: 18px 18px 18px 4px; border: 1px solid #475569; }
-    .msg-action-bar { position: absolute; top: 50%; transform: translateY(-50%); display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; z-index: 10; }
-    .message-group-row.other .msg-action-bar { right: -36px; }
-    .message-group-row.self .msg-action-bar { left: -64px; }
-    .sms-bubble-wrapper:hover .msg-action-bar { opacity: 1; }
-    .msg-action-btn { background: var(--bg-sidebar); border: 1px solid #475569; color: var(--text-muted); border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
-    .msg-action-btn:hover { background: var(--accent); color: #fff; }
-    .msg-action-btn.delete-btn:hover { background: var(--danger); color: #fff; }
-    .sms-timestamp { font-size: calc(11px + var(--font-delta)); color: var(--text-muted); margin-top: 3px; margin-bottom: 4px; opacity: 0.85; }
-    .chat-img-wrapper { position: relative; display: inline-block; max-width: 280px; margin-top: 4px; min-width: 120px; min-height: 80px; }
-    .chat-img-attachment { max-width: 100%; max-height: 220px; border-radius: 10px; display: block; object-fit: contain; cursor: pointer; transition: transform 0.2s; background: rgba(255,255,255,0.04); min-height: 60px; }
-    .chat-img-attachment:hover { transform: scale(1.01); }
-    .chat-img-download-btn { position: absolute; top: 8px; right: 8px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.2s, background 0.2s; z-index: 5; }
-    .chat-img-wrapper:hover .chat-img-download-btn { opacity: 1; }
-    .chat-img-download-btn:hover { background: var(--accent); }
-    .status-badge {
-      position: absolute;
-      bottom: -1px;
-      right: -1px;
-      border-radius: 50%;
-      border: 2px solid var(--bg-sidebar);
-      z-index: 2;
-    }
+    
+    /* Avatars & Status */
+    .avatar-wrap { position: relative; width: 32px; height: 32px; flex-shrink: 0; }
+    .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; color: white; }
+    .status-badge { position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg-sidebar); z-index: 2; }
     .status-badge.online { background-color: var(--success); }
     .status-badge.offline { background-color: #64748b; }
-    .feedback-slot { min-height: 24px; font-size: 13px; font-weight: 500; display: flex; align-items: center; margin-top: 6px; transition: color 0.2s; }
-    .feedback-slot.success { color: var(--success); }
-    .feedback-slot.error { color: var(--danger); }
-    .chat-input-container { padding: 14px 24px; padding-bottom: max(14px, env(safe-area-inset-bottom)); background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-    #reply-banner { background: #0f172a; border: 1px solid #334155; border-left: 3px solid var(--accent); padding: 6px 12px; border-radius: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
-    .typing-indicator-bar { font-size: 12px; color: var(--accent); min-height: 18px; margin-bottom: 2px; font-weight: 500; font-style: italic; display: flex; align-items: center; }
-    .chat-input-row { display: flex; gap: 12px; align-items: center; width: 100%; }
-    .chat-input-row input[type="text"] { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px 16px; border-radius: 8px; color: white; outline: none; margin: 0; user-select: text; }
-    .attach-btn { background: var(--bg-card); border: 1px solid #475569; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; }
-    .attach-btn:hover { background: #475569; }
-    input[type="text"], input[type="password"] { background: #0f172a; border: 1px solid #334155; padding: 10px; border-radius: 6px; color: white; width: 100%; margin-bottom: 8px; user-select: text; }
-    button { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    button:hover { background: var(--accent-hover); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    button.danger { background: var(--danger); }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; z-index: 100; align-items: center; justify-content: center; }
-    .modal-card { background: var(--bg-sidebar); padding: 28px; border-radius: 12px; width: 440px; border: 1px solid #334155; max-height: 90vh; overflow-y: auto; }
-    #pfp-editor-canvas { background: #000; border: 2px dashed var(--accent); border-radius: 50%; cursor: grab; display: block; margin: 12px auto; }
-    .inspector-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); z-index: 200; display: flex; justify-content: center; align-items: center; padding: 10vh 10vw; overflow: hidden; }
-    .inspector-viewport { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; cursor: grab; touch-action: none; }
-    .inspector-viewport:active { cursor: grabbing; }
-    .inspector-img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center center; transition: transform 0.05s ease-out; pointer-events: auto; border-radius: 6px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
-    .inspector-panel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 18px; border-radius: 50px; display: flex; align-items: center; gap: 12px; z-index: 210; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); }
-    .inspector-info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 16px; border-radius: 8px; font-size: 12px; color: #94a3b8; pointer-events: none; text-align: center; z-index: 210; }
-    .scrollable-list-box { max-height: 160px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px; padding: 8px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; background: #0f172a; }
-    .badge-owner { background: #eab308; color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
-    .loading-display { display: flex; justify-content: center; align-items: center; height: 100%; width: 100%; color: var(--text-muted); font-weight: 500; font-size: 14px; letter-spacing: 1px; }
-    .loading-display-small { text-align: center; padding: 24px 0; color: var(--text-muted); font-weight: 500; font-size: 12px; letter-spacing: 1px; }
-    .loading-more-msgs { text-align: center; padding: 8px 0; color: var(--text-muted); font-size: 11px; }
-    @media (max-width: 768px), (max-aspect-ratio: 1/1) {
-      .mobile-menu-toggle { display: block; }
-      .mobile-members-toggle { display: block; }
-      .sidebar { position: fixed; top: 0; bottom: 0; left: 0; transform: translateX(-100%); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
-      .sidebar.mobile-open { transform: translateX(0); }
-      .sidebar-overlay.mobile-open { display: block; }
-      .right-sidebar { position: fixed; top: 60px; bottom: 0; right: 0; z-index: 30; box-shadow: -5px 0 15px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform 0.3s ease; }
-      .right-sidebar.mobile-open { transform: translateX(0); }
-      .mobile-members-toggle { display: inline-flex; }
-      .sms-bubble-wrapper { max-width: 88%; }
-      .chat-input-container { padding-top: 24px; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
-      .chat-input-row input[type="text"] { padding-top: 20px; padding-bottom: 20px; font-size: 16px; }
-      .attach-btn, .chat-input-row button { padding-top: 18px; padding-bottom: 18px; }
-      .modal-card { width: 92vw; padding: 20px; }
-    }
+    
+    /* Chat Area */
+    #workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); position: relative; }
+    .header-bar { height: 60px; border-bottom: 1px solid #334155; display: flex; align-items: center; padding: 0 20px; background: var(--bg-sidebar); font-weight: bold; }
+    #chat-messages-panel { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    
+    .message-row { display: flex; flex-direction: column; max-width: 75%; }
+    .message-row.self { align-self: flex-end; align-items: flex-end; }
+    .message-row.other { align-self: flex-start; align-items: flex-start; }
+    .msg-sender { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    .sms-bubble { padding: 10px 14px; font-size: 14px; line-height: 1.4; border-radius: 18px; word-break: break-word; }
+    .message-row.self .sms-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+    .message-row.other .sms-bubble { background: var(--bg-card); color: white; border-bottom-left-radius: 4px; border: 1px solid #475569; }
+    .msg-img { max-width: 250px; border-radius: 8px; margin-top: 4px; }
+    
+    /* Input Area */
+    .chat-input-container { padding: 14px 20px; background: var(--bg-sidebar); border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; }
+    .typing-indicator { font-size: 12px; color: var(--accent); min-height: 18px; font-style: italic; }
+    .input-row { display: flex; gap: 10px; }
+    .input-row input { flex: 1; background: var(--bg-main); border: 1px solid #334155; padding: 12px; border-radius: 8px; color: white; outline: none; }
+    .input-row button { background: var(--accent); color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    .input-row button:hover { background: var(--accent-hover); }
   </style>
 </head>
 <body>
 
-  <audio id="notify-audio" src="notify.mp3" preload="auto"></audio>
-  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileSidebar(false)"></div>
-  <div id="members-sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileMembersSidebar(false)"></div>
-
-  <div id="auth-view" class="modal-overlay">
+  <div id="auth-view">
     <div class="modal-card">
-      <h2 id="auth-main-title" style="margin-bottom: 16px; text-align: center;">SOPERT</h2>
-      <div id="auth-subpage-login">
-        <input type="text" id="username" placeholder="Kullanıcı Adı" onkeydown="if(event.key==='Enter') login()">
-        <input type="password" id="password" placeholder="Şifre" onkeydown="if(event.key==='Enter') login()">
-        <button onclick="login()" style="width: 100%; margin-top: 4px; margin-bottom: 8px;">Giriş Yap</button>
-        <button onclick="switchAuthSubpage('register')" style="width: 100%; background: var(--bg-card); margin-bottom: 8px;">Yeni Hesap Oluştur</button>
-        <button onclick="openPublicAccountRequests()" style="width: 100%; background: #475569; font-size: 13px;">Hesap Talebinizi Görüntüleyin</button>
-      </div>
-      <div id="auth-subpage-register" class="hidden">
-        <p style="font-size: 12px; color: #f0b232; margin-bottom: 10px; text-align: center;">⚠️ Lütfen girdiğiniz kullanıcı adı ve şifreyi unutmayın!</p>
-        <input type="text" id="reg-username" placeholder="Kullanıcı adınız" oninput="handleRegUsernameInput(this.value)">
-        <p id="username-warning-text" style="font-size: 12px; color: #f0b232; margin-top: -4px; margin-bottom: 8px; display: none;"></p>
-        <input type="password" id="reg-password" placeholder="Şifreniz" onkeydown="if(event.key==='Enter') register()">
-        <button onclick="register()" style="width: 100%; background: var(--success); margin-top: 4px; margin-bottom: 8px;">Yönetici Onayına Gönder</button>
-        <button onclick="switchAuthSubpage('login')" style="width: 100%; background: var(--bg-card); margin-bottom: 8px;">Giriş Ekranına Dön</button>
-        <button onclick="openPublicAccountRequests()" style="width: 100%; background: #475569; font-size: 13px;">Hesap Talebinizi Görüntüleyin</button>
-      </div>
-      <div id="auth-subpage-status" class="hidden">
-        <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Bekleyen Talepler</h4>
-        <div id="public-pending-list" class="scrollable-list-box"></div>
-        <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 4px;">Onaylanan Hesaplar</h4>
-        <div id="public-accepted-list" class="scrollable-list-box"></div>
-        <button onclick="switchAuthSubpage('login')" style="width: 100%; margin-top: 4px;">Geri Dön</button>
-      </div>
-      <div id="auth-feedback" class="feedback-slot"></div>
+      <h2 style="margin-bottom: 20px;">SOPERT Giriş</h2>
+      <input type="text" id="username" placeholder="Kullanıcı Adı" onkeydown="if(event.key==='Enter') doLogin()">
+      <input type="password" id="password" placeholder="Şifre" onkeydown="if(event.key==='Enter') doLogin()">
+      <button onclick="doLogin()">Giriş Yap</button>
+      <div id="auth-error" style="color: var(--danger); font-size: 12px; margin-top: 10px; min-height: 16px;"></div>
     </div>
   </div>
 
-  <div id="app-container" class="hidden">
-    <div id="sidebar" class="sidebar">
-      <div class="user-profile-card">
-        <div id="user-avatar-container"></div>
-        <div style="flex:1;">
-          <div id="user-display-name" style="font-weight: bold;"></div>
-          <div id="user-role-tag" style="font-size: 11px; color: var(--text-muted);"></div>
-        </div>
-        <button onclick="toggleSettings(true)" style="padding: 6px 10px;">⚙️</button>
+  <div id="sidebar" class="hidden">
+    <div style="padding: 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155;">
+      <div class="avatar-wrap" id="my-avatar-wrap">
+        <div class="avatar-img" id="my-avatar-initial"></div>
       </div>
-      <button class="nav-btn active" id="btn-add-friends-tab" onclick="showAddFriendsView()">+ Arkadaş Ekle</button>
-      <div class="category-header"><span>Arkadaşlar</span></div>
-      <div class="list-container-sub" id="friends-sidebar-list"></div>
-      <div class="category-header">
-        <span>Gruplar</span>
-        <button class="add-btn-icon" title="Grup Oluştur" onclick="toggleCreateGroupModal(true)">+</button>
-      </div>
-      <div class="list-container" id="groups-sidebar-list"></div>
+      <div id="my-username" style="font-weight: bold;"></div>
+      <button onclick="logout()" style="margin-left: auto; background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">Çıkış</button>
     </div>
-
-    <div class="workspace">
-      <div class="header-bar">
-        <div style="display: flex; align-items: center;">
-          <button class="mobile-menu-toggle" onclick="toggleMobileSidebar(true)">☰</button>
-          <div style="display: flex; flex-direction: column;">
-            <h3 id="active-title">Arkadaş Ekle</h3>
-            <span id="active-subtitle" class="hidden" style="font-size: 11px; margin-top: 2px;"></span>
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button id="mobile-members-toggle-btn" class="mobile-members-toggle hidden" onclick="toggleMobileMembersSidebar(true)" title="Üyeler">👥</button>
-          <div id="header-actions"></div>
-        </div>
-      </div>
-      <div class="chat-layout-wrapper">
-        <div id="add-friends-panel" class="content-panel">
-          <div style="background: var(--bg-sidebar); padding: 20px; border-radius: 8px; border: 1px solid #334155;">
-            <h4>Kullanıcı adı ile arkadaş ekle</h4>
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-              <input type="text" id="friend-target-input" placeholder="Kullanıcı adını girin" style="margin: 0;" onkeydown="if(event.key==='Enter') sendFriendRequest()">
-              <button onclick="sendFriendRequest()">Gönder</button>
-            </div>
-            <div id="add-friend-feedback" class="feedback-slot"></div>
-          </div>
-          <div style="background: var(--bg-sidebar); padding: 20px; border-radius: 8px; border: 1px solid #334155;">
-            <h4>Bekleyen İstekler</h4>
-            <div id="pending-friends-list" style="margin-top: 10px;"></div>
-          </div>
-        </div>
-        <div id="chat-messages-panel" class="content-panel hidden"></div>
-        <div id="right-members-sidebar" class="right-sidebar hidden">
-          <div class="right-sidebar-header">
-            <span>Üyeler</span>
-            <button class="add-btn-icon" title="Üye Ekle" onclick="toggleAddMemberModal(true)">+</button>
-          </div>
-          <div id="owner-policy-panel" style="margin-bottom: 10px;"></div>
-          <div id="members-list-container" style="display: flex; flex-direction: column; gap: 8px; flex:1; overflow-y:auto;"></div>
-        </div>
-      </div>
-      <div id="chat-input-area" class="chat-input-container hidden">
-        <div id="reply-banner" class="hidden">
-          <span id="reply-banner-text" style="color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-          <button onclick="cancelReply()" style="background: transparent; border: none; color: var(--danger); font-weight: bold; cursor: pointer; padding: 0 4px;">✕</button>
-        </div>
-        <div id="typing-indicator-bar" class="typing-indicator-bar"></div>
-        <div class="chat-input-row">
-          <button class="attach-btn" title="Görsel Gönder (Maks 1MB)" onclick="document.getElementById('chat-img-input').click()">📷</button>
-          <input type="file" id="chat-img-input" accept="image/*" class="hidden" onchange="processAndSendImageMessage(this)">
-          <input type="text" id="message-input" placeholder="Bir mesaj yazın..." oninput="onMessageInput()" onkeydown="if(event.key==='Enter') sendMessage()">
-          <button onclick="sendMessage()">Gönder</button>
-        </div>
-        <div id="chat-feedback" class="feedback-slot" style="min-height:0;"></div>
-      </div>
-    </div>
+    <div class="category-header">Arkadaşlar</div>
+    <div class="list-container" id="friends-list"></div>
+    <div class="category-header">Gruplar</div>
+    <div class="list-container" id="groups-list"></div>
   </div>
 
-  <div id="create-group-modal" class="modal-overlay hidden">
-    <div class="modal-card">
-      <h3>Yeni Grup Oluştur</h3>
-      <input type="text" id="modal-group-name" placeholder="Grup Adı" style="margin-top: 16px;" onkeydown="if(event.key==='Enter') createGroupFromModal()">
-      <div id="create-group-feedback" class="feedback-slot"></div>
-      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
-        <button onclick="toggleCreateGroupModal(false)" style="background: var(--bg-card);">İptal</button>
-        <button id="modal-create-group-btn" onclick="createGroupFromModal()">Grup Oluştur</button>
+  <div id="workspace" class="hidden">
+    <div class="header-bar" id="chat-header">Bir sohbet seçin</div>
+    <div id="chat-messages-panel"></div>
+    
+    <div class="chat-input-container">
+      <div id="typing-indicator" class="typing-indicator"></div>
+      <div class="input-row">
+        <input type="text" id="message-input" placeholder="Bir mesaj yazın..." oninput="handleInputKeydown()" onkeydown="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()">Gönder</button>
       </div>
     </div>
-  </div>
-
-  <div id="add-member-modal" class="modal-overlay hidden">
-    <div class="modal-card">
-      <h3>Gruba Arkadaş Ekle</h3>
-      <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 12px;">Aşağıdaki listenizden eklemek istediğiniz arkadaşınızı seçin:</p>
-      <div id="modal-friends-scrollable-list" class="scrollable-list-box" style="max-height: 180px;"></div>
-      <div id="add-member-feedback" class="feedback-slot"></div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
-        <button onclick="toggleAddMemberModal(false)" style="background: var(--bg-card);">Kapat</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="settings-modal" class="modal-overlay hidden">
-    <div class="modal-card">
-      <h3>Kullanıcı Ayarları</h3>
-      <hr style="border-color: #334155; margin: 12px 0;">
-      <h4>Profil Resmi Düzenleyici</h4>
-      <input type="file" id="pfp-file-input" accept="image/*" style="margin: 8px 0;" onchange="loadPfpIntoEditor(this)">
-      <div id="editor-wrapper" class="hidden">
-        <canvas id="pfp-editor-canvas" width="180" height="180"></canvas>
-        <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
-          <span style="font-size: 12px;">Yakınlaştırma:</span>
-          <input type="range" id="pfp-zoom" min="0.5" max="3" step="0.05" value="1" oninput="drawPfpEditor()">
-        </div>
-        <p style="font-size: 11px; color: var(--text-muted); text-align: center;">Konumu ayarlamak için resmi sürükleyin</p>
-        <button onclick="saveCroppedPFP()" style="width: 100%; margin: 8px 0;">Kaydet ve Profil Resmini Yükle</button>
-        <div id="pfp-feedback" class="feedback-slot"></div>
-      </div>
-      <h4 style="margin-top: 16px;">Görünüm & Boyut Ayarları</h4>
-      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Arayüz ve Mesaj boyutunu kendinize göre özelleştirin.</p>
-      <div style="margin-bottom: 10px;">
-        <label style="font-size: 12px; display: block; margin-bottom: 4px;">Arayüz Ölçeği (UI Scale): <span id="ui-scale-val">100</span>%</label>
-        <input type="range" id="ui-scale-slider" min="80" max="130" value="100" step="5" oninput="updateUIScalePreview(this.value)">
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label style="font-size: 12px; display: block; margin-bottom: 4px;">Mesaj Yazı Boyutu: <span id="chat-font-val">14</span>px</label>
-        <input type="range" id="chat-font-slider" min="11" max="22" value="14" step="1" oninput="updateChatFontPreview(this.value)">
-      </div>
-      <button id="apply-scale-btn" onclick="applyDisplaySettingsLock()" style="width: 100%; background: var(--success); margin-bottom: 6px;">Boyut Ayarlarını Uygula</button>
-      <div id="scale-lock-msg" class="feedback-slot error"></div>
-      <hr style="border-color: #334155; margin: 16px 0;">
-      <h4>Bildirim Sesi Düzeyi</h4>
-      <input type="range" id="volume-db-slider" min="-30" max="30" value="0" step="1" oninput="document.getElementById('db-val').innerText=this.value">
-      <span id="db-val">0</span> dB
-      <div style="display: flex; gap: 8px; margin-top: 8px;">
-        <button onclick="previewAudio()">Önizle</button>
-        <button id="apply-vol-btn" onclick="applyVolumeLock()" style="background: var(--success);">Uygula</button>
-      </div>
-      <div id="lock-msg" class="feedback-slot error"></div>
-      <div id="admin-section" class="hidden" style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 12px;">
-        <h4 style="color: var(--danger);">Yönetici Kontrolleri</h4>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Bekleyen Kayıt Talepleri:</p>
-        <div id="admin-pending-accounts" style="margin: 6px 0;"></div>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">Kayıtlı Kullanıcı Listesi (Silmek için seçin):</p>
-        <div id="admin-users-scrollable-list" class="scrollable-list-box" style="margin-top: 6px;"></div>
-        <div id="admin-feedback" class="feedback-slot"></div>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-top: 24px;">
-        <button class="danger" onclick="logout()">Çıkış Yap</button>
-        <button onclick="toggleSettings(false)">Kapat</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="image-inspector-modal" class="inspector-overlay hidden">
-    <div class="inspector-panel" onclick="event.stopPropagation()">
-      <span id="inspector-zoom-level" style="font-size: 14px; font-weight: 600; min-width: 50px; text-align: center;">%100</span>
-      <button onclick="resetInspectorView()" style="padding: 6px 12px; font-size: 12px;">Sıfırla</button>
-      <button onclick="downloadInspectorImage()" style="padding: 6px 12px; font-size: 12px; background: var(--accent);">İndir</button>
-      <button onclick="closeImageInspector()" class="danger" style="padding: 6px 12px; font-size: 12px;">Kapat</button>
-    </div>
-    <div class="inspector-viewport" id="inspector-viewport">
-      <img id="inspector-img" class="inspector-img" src="" alt="Büyütülmüş Görsel" draggable="false">
-    </div>
-    <div class="inspector-info">Kaydırmak için basılı tutup sürükleyin &bull; Yakınlaştırmak için fare tekerleğini veya çimdikleme hareketini kullanın</div>
   </div>
 
   <script>
-    const BACKEND = "https://sevrercde.onrender.com";
+    const RELAY = "https://your-relay.onrender.com"; // Adjust to your backend URL
+    const WS_RELAY = RELAY.replace("https://", "wss://").replace("http://", "ws://");
 
-    // ------------------------------------------------------------------
-    // GLOBAL API INTERCEPTOR
-    // Automatically logs out if ANY request returns a 998 (Geçersiz Oturum) status
-    // ------------------------------------------------------------------
-    let isLoggingOut = false;
+    // ==========================================
+    // 1. GLOBAL FETCH INTERCEPTOR (MAINTENANCE FIX)
+    // ==========================================
+    function triggerMaintenance() {
+      document.body.innerHTML = `
+        <div style="background-color: black; color: red; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box;">
+          SOPERT ŞU ANDA BAKIM ALTINDA YA DA ÇALIŞMAMAKTADIR, LÜTFEN DAHA SONRA TEKRAR DENEYİNİZ.
+        </div>
+      `;
+      // Automatic 3-second refresh cycle
+      setInterval(() => location.reload(), 3000);
+      window.stop();
+    }
+
     const _origFetch = window.fetch;
     window.fetch = async (...args) => {
-      const res = await _origFetch(...args);
-      
-      if (isLoggingOut) return res;
+      try {
+        const res = await _origFetch(...args);
+        
+        // Catch standard offline status codes
+        if (res.status === 502 || res.status === 503 || res.status === 999) {
+          triggerMaintenance();
+          return res;
+        }
 
-      // Check HTTP Status
-      if (res.status === 998) {
-        isLoggingOut = true;
-        logout();
-        return res;
-      }
-      
-      // Check JSON payload safely just in case the error is embedded inside
-      const contentType = res.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
+        // Catch specific text error ("Vaio Bağlantısı Başarısız" / "Veritabanı...")
         const clone = res.clone();
-        try {
-          const data = await clone.json();
-          if (data === 998 || data.code === 998 || data.error === 998 || data.errorCode === 998) {
-            isLoggingOut = true;
-            logout();
-          }
-        } catch (e) {} // ignore parsing errors for clone
+        const text = await clone.text();
+        if (text.includes("Vaio Bağlantısı Başarısız") || text.includes("Veritabanı Bağlantısı Başarısız")) {
+          triggerMaintenance();
+          return res; // Halt processing
+        }
+
+        // Standard 998 Token Expiration
+        if (res.status === 998 || text.includes("Oturum süresi doldu") || text.includes("998")) {
+            forceLocalLogout();
+        }
+
+        return res;
+      } catch (err) {
+        if (err.message && (err.message.includes("Vaio Bağlantısı Başarısız") || err.message.includes("Veritabanı"))) {
+          triggerMaintenance();
+        }
+        throw err;
       }
-      return res;
     };
 
+    // ==========================================
+    // 2. STATE & API WRAPPER
+    // ==========================================
+    let sessionToken = localStorage.getItem("token") || "";
+    let myUsername = localStorage.getItem("username") || "";
+    
+    let activeGroupToken = null;
+    let localFriends = [];
+    let localGroups = [];
+    let onlineMap = {}; // Maps username -> boolean online status
 
-    // ------------------------------------------------------------------
-    // SECURITY NOTE: the session token lives only in localStorage/memory.
-    // It is NEVER logged, NEVER put into innerHTML, and NEVER placed in a
-    // URL (the SSE connection uses a separate 60s single-use stream token
-    // fetched over an authenticated POST — see connectStream()).
-    // ------------------------------------------------------------------
-    let token = localStorage.getItem("token") || "";
-    let currentUser = localStorage.getItem("username") || "";
-    let currentRole = localStorage.getItem("role") || "";
-    let currentUserPfp = localStorage.getItem("pfp") || "";
-    let activeGroupToken = "";
-
-    // ------------------------------------------------------------------
-    // RAM CACHES
-    // ------------------------------------------------------------------
-    let chatMessagesCache = {};
-    let groupMembersCache = {}; // groupToken -> { groupInfo, members }
-    let onlineMap = {};         // Global state for user presence (username -> boolean)
-
-    let acceptedFriendsCache = [];
-    let cachedGroupMembers = [];
-    let cachedFriends = [];
-    let cachedGroups = [];
-    let unreadCounts = {};
-    let activeReplyTarget = null;
-    let eventSource = null;
-    let audioCtx, gainNode;
-
-    // TYPING STATE
-    let typingTimeout = null;
-    let lastSentTyping = 0;
-    const typingTimers = {}; // username -> timeout ID
-    const currentTypers = new Set(); // usernames currently typing in active group
-
-    let imageCache = {};
-    function isImageRef(content) {
-      return typeof content === "string" && (content.startsWith("data:image/") || content.startsWith("img:"));
-    }
-
-// --- INSTANT SERVER HEALTH CHECK & MAINTENANCE OVERRIDE ---
-(async function runInitialHealthCheck() {
-  const currentToken = localStorage.getItem("token");
-  if (!currentToken) {
-    try {
-      const authCheckRes = await window.fetch(`${BACKEND}/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "totally", password: "6767" })
+    async function api(path, options = {}) {
+      const headers = { "Content-Type": "application/json" };
+      if (sessionToken) headers["Authorization"] = sessionToken;
+      
+      const res = await fetch(`${RELAY}${path}`, {
+        ...options,
+        headers: { ...headers, ...options.headers },
       });
-
-      let triggerMaintenance = false;
-
-      if (authCheckRes.status === 502 || authCheckRes.status === 999) {
-        triggerMaintenance = true;
-      } else {
-        const authCheckData = await authCheckRes.json();
-        if (authCheckData === 999 || authCheckData.code === 999 || authCheckData.error === 999 || authCheckData.errorCode === 999) {
-          triggerMaintenance = true;
-        }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
+      return res.json();
+    }
 
-      if (triggerMaintenance) {
-        document.body.innerHTML = `
-          <div style="background-color: black; color: red; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box;">
-            SOPERT ŞU ANDA BAKIM ALTINDA YA DA ÇALIŞMAMAKTADIR, LÜTFEN DAHA SONRA TEKRAR DENEYİNİZ.
-          </div>
-        `;
-        
-        setTimeout(() => location.reload(), 5000);
-        
-        document.addEventListener("visibilitychange", () => {
-          if (document.visibilityState === "visible") location.reload();
+    // ==========================================
+    // 3. WS STREAM (CLIENT -> SERVER)
+    // ==========================================
+    let ws = null;
+    let wsReady = false;
+    let wsBackoff = 1000;
+    let wsReconnTimer = null;
+    let wsDestroyed = false;
+    let intendedOnline = true;
+
+    function wsConnect() {
+      if (wsDestroyed) return;
+      ws = new WebSocket(`${WS_RELAY}/api/client-stream`);
+
+      ws.onopen = () => {
+        // Send I-FRAME Auth
+        wsSend({
+          frameType: "I-FRAME",
+          token: sessionToken,
+          state: { presence: intendedOnline ? "online" : "offline" }
         });
-        window.addEventListener("focus", () => location.reload());
-
-        window.stop(); 
-      }
-    } catch (e) {
-      console.warn("Could not reach backend, retrying in 1 second...", e);
-      setTimeout(() => location.reload(), 1000);
-    }
-  }
-})();
-// ----------------------------------------------------------
-
-    
-    async function resolveImageContent(content) {
-      if (!content) return "";
-      if (content.startsWith("data:image/")) return content;
-      if (content.startsWith("img:")) {
-        const id = content.split(":")[1];
-        if (imageCache[id]) return imageCache[id];
-        try {
-          const res = await fetch(`${BACKEND}/api/images/${id}`, { headers: { Authorization: token } });
-          if (!res.ok) return "";
-          const data = await res.json();
-          imageCache[id] = data.content;
-          return data.content;
-        } catch (e) { return ""; }
-      }
-      return "";
-    }
-
-    const MAX_CACHED_GROUPS = 25;
-    function touchCacheOrder(groupToken) {
-      chatMessagesCache[groupToken]._touched = Date.now();
-      const keys = Object.keys(chatMessagesCache);
-      if (keys.length > MAX_CACHED_GROUPS) {
-        keys.sort((a, b) => chatMessagesCache[a]._touched - chatMessagesCache[b]._touched);
-        const evict = keys.slice(0, keys.length - MAX_CACHED_GROUPS);
-        evict.forEach(k => { if (k !== activeGroupToken) delete chatMessagesCache[k]; });
-      }
-    }
-
-    function handleRegUsernameInput(value) {
-      const cleaned = value.toLowerCase().replace(/[^a-z]/g, "");
-      const warnElem = document.getElementById("username-warning-text");
-      if (value !== cleaned && value.trim() !== "") {
-        warnElem.innerText = `Kullanıcı adınız @${cleaned} olacak.`;
-        warnElem.style.display = "block";
-      } else {
-        warnElem.style.display = "none";
-      }
-    }
-
-    function toggleMobileSidebar(open) {
-      const sidebar = document.getElementById("sidebar");
-      const overlay = document.getElementById("sidebar-overlay");
-      sidebar.classList.toggle("mobile-open", open);
-      overlay.classList.toggle("mobile-open", open);
-    }
-
-    function toggleMobileMembersSidebar(open) {
-      const sidebar = document.getElementById("right-members-sidebar");
-      const overlay = document.getElementById("members-sidebar-overlay");
-      sidebar.classList.toggle("mobile-open", open);
-      overlay.classList.toggle("mobile-open", open);
-    }
-
-    function initDisplaySettings() {
-      const savedScale = localStorage.getItem("app_ui_scale") || "100";
-      const savedFont = localStorage.getItem("app_chat_font") || "14";
-      updateUIScale(savedScale);
-      updateChatFont(savedFont);
-      const scaleSlider = document.getElementById("ui-scale-slider");
-      const fontSlider = document.getElementById("chat-font-slider");
-      if (scaleSlider) scaleSlider.value = savedScale;
-      if (fontSlider) fontSlider.value = savedFont;
-    }
-    function updateUIScalePreview(val) { document.getElementById("ui-scale-val").innerText = val; }
-    function updateChatFontPreview(val) { document.getElementById("chat-font-val").innerText = val; }
-    function updateUIScale(val) {
-      document.documentElement.style.setProperty("--ui-scale", val / 100);
-      document.getElementById("ui-scale-val").innerText = val;
-    }
-    function updateChatFont(val) {
-      const fontVal = parseInt(val);
-      document.documentElement.style.setProperty("--chat-font-size", fontVal + "px");
-      document.documentElement.style.setProperty("--font-delta", (fontVal - 14) + "px");
-      document.getElementById("chat-font-val").innerText = fontVal;
-    }
-    function applyDisplaySettingsLock() {
-      const scaleVal = document.getElementById("ui-scale-slider").value;
-      const fontVal = document.getElementById("chat-font-slider").value;
-      updateUIScale(scaleVal); 
-      updateChatFont(fontVal);
-      localStorage.setItem("app_ui_scale", scaleVal);
-      localStorage.setItem("app_chat_font", fontVal);
-      
-      const msgBox = document.getElementById("scale-lock-msg");
-      msgBox.className = "feedback-slot success";
-      msgBox.innerText = "Boyut ayarları başarıyla uygulandı!";
-      setTimeout(() => msgBox.innerText = "", 3000);
-    }
-
-    function checkScaleLockStatus() {
-      document.getElementById("apply-scale-btn").disabled = false;
-    }
-
-    function applyVolumeLock() {
-      const db = parseFloat(document.getElementById("volume-db-slider").value);
-      localStorage.setItem("sound_db", db);
-      setGain(db);
-      
-      const msgBox = document.getElementById("lock-msg");
-      msgBox.className = "feedback-slot success";
-      msgBox.innerText = "Ses başarıyla uygulandı!";
-      setTimeout(() => msgBox.innerText = "", 3000);
-    }
-
-    function checkLockStatus() {
-      document.getElementById("volume-db-slider").disabled = false;
-      document.getElementById("apply-vol-btn").disabled = false;
-    }
-
-    function displayFeedback(elementId, message, isSuccess = true) {
-      const target = document.getElementById(elementId);
-      if (!target) return;
-      target.innerText = message;
-      target.className = `feedback-slot ${isSuccess ? 'success' : 'error'}`;
-    }
-
-    function downloadImage(src, filename = 'gorsel.jpg') {
-      const a = document.createElement('a');
-      a.href = src; a.download = filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    function setReplyTarget(sender, content) {
-      activeReplyTarget = { sender, content };
-      const banner = document.getElementById("reply-banner");
-      const text = document.getElementById("reply-banner-text");
-      const cleanContent = isImageRef(content) ? "📷 Görsel" : content;
-      text.innerText = `Yanıtlanıyor: @${sender}: "${cleanContent.substring(0, 40)}${cleanContent.length > 40 ? '...' : ''}"`;
-      banner.classList.remove("hidden");
-      document.getElementById("message-input").focus();
-    }
-    
-    function cancelReply() {
-      activeReplyTarget = null;
-      document.getElementById("reply-banner").classList.add("hidden");
-    }
-
-    function switchAuthSubpage(targetPage) {
-      document.getElementById("auth-subpage-login").classList.toggle("hidden", targetPage !== 'login');
-      document.getElementById("auth-subpage-register").classList.toggle("hidden", targetPage !== 'register');
-      document.getElementById("auth-subpage-status").classList.toggle("hidden", targetPage !== 'status');
-      const mainTitle = document.getElementById("auth-main-title");
-      if (targetPage === 'register') { mainTitle.innerText = "YENİ HESAP YARAT"; mainTitle.style.color = "var(--accent-hover)"; }
-      else { mainTitle.innerText = "SOPERT"; mainTitle.style.color = "var(--text-bright)"; }
-      displayFeedback("auth-feedback", "", true);
-    }
-
-    async function openPublicAccountRequests() {
-      switchAuthSubpage("status");
-      const pendingBox = document.getElementById("public-pending-list");
-      const acceptedBox = document.getElementById("public-accepted-list");
-      pendingBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Yükleniyor...</p>";
-      acceptedBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Yükleniyor...</p>";
-      try {
-        const res = await fetch(`${BACKEND}/api/public/account-requests`);
-        const data = await res.json();
-        pendingBox.innerHTML = ""; acceptedBox.innerHTML = "";
-        (data.pending && data.pending.length ? data.pending : []).forEach(u => {
-          const item = document.createElement("div");
-          item.style.cssText = "font-size:13px; padding:4px 8px; background:var(--bg-card); border-radius:4px;";
-          item.innerText = `@${u} (Onay Bekliyor)`;
-          pendingBox.appendChild(item);
-        });
-        if (!data.pending || !data.pending.length) pendingBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Bekleyen talep yok.</p>";
-        (data.accepted && data.accepted.length ? data.accepted : []).forEach(u => {
-          const item = document.createElement("div");
-          item.style.cssText = "font-size:13px; padding:4px 8px; background:var(--bg-card); border-radius:4px;";
-          item.innerText = `@${u} (Onaylandı)`;
-          acceptedBox.appendChild(item);
-        });
-        if (!data.accepted || !data.accepted.length) acceptedBox.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Onaylanmış hesap yok.</p>";
-      } catch (err) {
-        displayFeedback("auth-feedback", "Talepler yüklenemedi.", false);
-      }
-    }
-
-    // ---------------- PFP editor ----------------
-    let pfpImg = new Image();
-    let pfpOffsetX = 0, pfpOffsetY = 0, isDraggingPfp = false, dragStartX = 0, dragStartY = 0;
-
-    function loadPfpIntoEditor(input) {
-      if (!input.files.length) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        pfpImg = new Image();
-        pfpImg.onload = () => {
-          pfpOffsetX = 0; pfpOffsetY = 0;
-          document.getElementById("pfp-zoom").value = 1;
-          document.getElementById("editor-wrapper").classList.remove("hidden");
-          drawPfpEditor();
-        };
-        pfpImg.src = e.target.result;
       };
-      reader.readAsDataURL(input.files[0]);
-    }
-    function drawPfpEditor() {
-      const canvas = document.getElementById("pfp-editor-canvas");
-      const ctx = canvas.getContext("2d");
-      const zoom = parseFloat(document.getElementById("pfp-zoom").value);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      ctx.beginPath(); ctx.arc(90, 90, 90, 0, Math.PI * 2); ctx.clip();
-      const dw = pfpImg.width * zoom, dh = pfpImg.height * zoom;
-      ctx.drawImage(pfpImg, (90 - dw / 2) + pfpOffsetX, (90 - dh / 2) + pfpOffsetY, dw, dh);
-      ctx.restore();
-    }
-    const canvasEl = document.getElementById("pfp-editor-canvas");
-    canvasEl.addEventListener("mousedown", (e) => {
-      isDraggingPfp = true; dragStartX = e.clientX - pfpOffsetX; dragStartY = e.clientY - pfpOffsetY;
-      canvasEl.style.cursor = "grabbing";
-    });
-    window.addEventListener("mousemove", (e) => {
-      if (!isDraggingPfp) return;
-      pfpOffsetX = e.clientX - dragStartX; pfpOffsetY = e.clientY - dragStartY;
-      drawPfpEditor();
-    });
-    window.addEventListener("mouseup", () => { isDraggingPfp = false; canvasEl.style.cursor = "grab"; });
 
-    async function saveCroppedPFP() {
-      const canvas = document.getElementById("pfp-editor-canvas");
-      let quality = 0.85;
-      let base64 = canvas.toDataURL("image/jpeg", quality);
-      while (base64.length > 512 * 1024 && quality > 0.1) { quality -= 0.1; base64 = canvas.toDataURL("image/jpeg", quality); }
-      const res = await fetch(`${BACKEND}/api/user/pfp`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ pfpBase64: base64 })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        currentUserPfp = base64;
-        localStorage.setItem("pfp", base64);
-        renderUserAvatar(currentUser, base64);
-        displayFeedback("pfp-feedback", "Profil resmi başarıyla güncellendi!", true);
-      } else {
-        displayFeedback("pfp-feedback", data.error, false);
-      }
-    }
-
-    // ---------------- Image inspector ----------------
-    let inspectorScale = 1, inspectorPointX = 0, inspectorPointY = 0, inspectorStartX = 0, inspectorStartY = 0;
-    let isInspectorDragging = false, initialPinchDist = null, initialPinchScale = 1, currentInspectorImageSrc = "";
-
-    function openImageInspector(src) {
-      currentInspectorImageSrc = src;
-      document.getElementById("inspector-img").src = src;
-      document.getElementById("image-inspector-modal").classList.remove("hidden");
-      resetInspectorView();
-    }
-    function closeImageInspector() {
-      document.getElementById("image-inspector-modal").classList.add("hidden");
-      isInspectorDragging = false;
-    }
-    function downloadInspectorImage() {
-      if (currentInspectorImageSrc) downloadImage(currentInspectorImageSrc, `gorsel_${Date.now()}.jpg`);
-    }
-    function updateInspectorTransform() {
-      const img = document.getElementById("inspector-img");
-      img.style.transform = `translate(${inspectorPointX}px, ${inspectorPointY}px) scale(${inspectorScale})`;
-      const zd = document.getElementById("inspector-zoom-level");
-      if (zd) zd.textContent = `%${Math.round(inspectorScale * 100)}`;
-    }
-    function resetInspectorView() { inspectorScale = 1; inspectorPointX = 0; inspectorPointY = 0; updateInspectorTransform(); }
-
-    function initImageInspectorEvents() {
-      const viewport = document.getElementById("inspector-viewport");
-      const img = document.getElementById("inspector-img");
-      img.addEventListener('dragstart', (e) => e.preventDefault());
-      viewport.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const rect = viewport.getBoundingClientRect();
-        const mouseX = e.clientX - (rect.left + rect.width / 2);
-        const mouseY = e.clientY - (rect.top + rect.height / 2);
-        const prevScale = inspectorScale;
-        let newScale = prevScale * (e.deltaY < 0 ? 1.15 : 1 / 1.15);
-        newScale = Math.min(Math.max(newScale, 0.8), 15);
-        inspectorPointX = mouseX - (mouseX - inspectorPointX) * (newScale / prevScale);
-        inspectorPointY = mouseY - (mouseY - inspectorPointY) * (newScale / prevScale);
-        inspectorScale = newScale;
-        updateInspectorTransform();
-      }, { passive: false });
-      function startDrag(e) {
-        if (e.touches && e.touches.length === 2) {
-          initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-          initialPinchScale = inspectorScale; return;
-        }
-        isInspectorDragging = true;
-        const cx = e.clientX || (e.touches && e.touches[0].clientX);
-        const cy = e.clientY || (e.touches && e.touches[0].clientY);
-        inspectorStartX = cx - inspectorPointX; inspectorStartY = cy - inspectorPointY;
-      }
-      function moveDrag(e) {
-        if (e.touches && e.touches.length === 2) {
-          if (initialPinchDist) {
-            const curDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            inspectorScale = Math.min(Math.max(initialPinchScale * (curDist / initialPinchDist), 0.8), 15);
-            updateInspectorTransform();
+      ws.onmessage = (event) => {
+        try {
+          const frame = JSON.parse(event.data);
+          if (frame.frameType === "I-FRAME-ACK" && frame.ok) {
+            wsReady = true;
+            wsBackoff = 1000;
+            console.log("[ws] Authenticated");
           }
+        } catch (e) {}
+      };
+
+      ws.onclose = (event) => {
+        wsReady = false;
+        if (event.code === 4002) {
+          console.error("[ws] Session rejected. Logging out.");
+          forceLocalLogout();
           return;
         }
-        if (!isInspectorDragging) return;
-        e.preventDefault();
-        const cx = e.clientX || (e.touches && e.touches[0].clientX);
-        const cy = e.clientY || (e.touches && e.touches[0].clientY);
-        inspectorPointX = cx - inspectorStartX; inspectorPointY = cy - inspectorStartY;
-        updateInspectorTransform();
-      }
-      function stopDrag() { isInspectorDragging = false; initialPinchDist = null; }
-      viewport.addEventListener('mousedown', startDrag);
-      window.addEventListener('mousemove', moveDrag);
-      window.addEventListener('mouseup', stopDrag);
-      viewport.addEventListener('touchstart', startDrag, { passive: false });
-      window.addEventListener('touchmove', moveDrag, { passive: false });
-      window.addEventListener('touchend', stopDrag);
+        if (!wsDestroyed) scheduleWsReconnect();
+      };
     }
 
-    function initOverlayCloseEvents() {
-      document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => { 
-          if (e.target === overlay && overlay.id !== 'auth-view') {
-            overlay.classList.add('hidden'); 
+    function wsSend(frame) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(frame));
+        return true;
+      }
+      return false;
+    }
+
+    function scheduleWsReconnect() {
+      clearTimeout(wsReconnTimer);
+      wsReconnTimer = setTimeout(() => {
+        wsBackoff = Math.min(wsBackoff * 2, 30000);
+        wsConnect();
+      }, wsBackoff);
+    }
+
+    function setPresence(online) {
+      intendedOnline = online;
+      wsSend({ frameType: "P-FRAME", type: "PRESENCE", payload: { online } });
+    }
+
+    function teardownWS() {
+      wsDestroyed = true;
+      clearTimeout(wsReconnTimer);
+      if (ws) {
+        wsSend({ frameType: "P-FRAME", type: "PRESENCE", payload: { online: false } });
+        ws.close(1000, "logout");
+        ws = null;
+      }
+      wsReady = false;
+    }
+
+    // Visibility mapping
+    document.addEventListener("visibilitychange", () => setPresence(document.visibilityState === "visible"));
+    window.addEventListener("focus", () => setPresence(true));
+    window.addEventListener("blur", () => {
+      if (document.visibilityState === "hidden") setPresence(false);
+    });
+
+    // ==========================================
+    // 4. SSE STREAM (SERVER -> CLIENT)
+    // ==========================================
+    let sse = null;
+
+    async function openSSE() {
+      try {
+        const { streamToken } = await api("/api/stream/token", { method: "POST" });
+        sse = new EventSource(`${RELAY}/api/stream?token=${streamToken}`);
+
+        sse.onmessage = (event) => {
+          try {
+            const frame = JSON.parse(event.data);
+            handleServerFrame(frame);
+          } catch (e) {}
+        };
+
+        sse.onerror = () => {
+          console.warn("[sse] Connection error — browser will retry automatically.");
+        };
+      } catch (err) {
+        console.error("Failed to open SSE:", err);
+      }
+    }
+
+    function handleServerFrame(frame) {
+      if (frame.frameType === "I-FRAME") {
+        applySnapshot(frame);
+        return;
+      }
+      if (frame.frameType !== "P-FRAME") return;
+
+      switch (frame.type) {
+        case "PRESENCE_CHANGED":
+          onlineMap[frame.payload.username] = frame.payload.online;
+          updatePresenceIndicators();
+          break;
+        case "FRIEND_ACCEPTED":
+          if (frame.payload.friendRowFor[myUsername]) {
+            localFriends.push(frame.payload.friendRowFor[myUsername]);
+            renderSidebar();
           }
-        });
+          break;
+        case "FRIEND_REMOVED":
+          localFriends = localFriends.filter(f => !(f.user1 === frame.payload.user1 && f.user2 === frame.payload.user2));
+          if (activeGroupToken && activeGroupToken.startsWith("dm_")) {
+              const other = frame.payload.user1 === myUsername ? frame.payload.user2 : frame.payload.user1;
+              if (activeGroupToken.includes(other)) document.getElementById("chat-messages-panel").innerHTML = "<em>Arkadaşlıktan çıkarıldı.</em>";
+          }
+          renderSidebar();
+          break;
+        case "GROUP_MEMBER_ADDED":
+          if (frame.payload.newMember.username === myUsername) {
+            localGroups.push(frame.payload.group);
+            renderSidebar();
+          }
+          break;
+        case "GROUP_MEMBER_LEFT":
+          if (frame.payload.username === myUsername) {
+            localGroups = localGroups.filter(g => g.group_token !== frame.payload.groupToken);
+            if (activeGroupToken === frame.payload.groupToken) {
+              activeGroupToken = null;
+              document.getElementById("chat-messages-panel").innerHTML = "";
+              document.getElementById("chat-header").innerText = "Bir sohbet seçin";
+            }
+            renderSidebar();
+          }
+          break;
+        case "NEW_MESSAGE":
+          if (frame.payload.group_token === activeGroupToken) {
+            renderSingleMessage(frame.payload);
+          }
+          break;
+        case "MESSAGE_DELETED":
+          if (frame.payload.groupToken === activeGroupToken) {
+            const el = document.getElementById(`msg-${frame.payload.messageId}`);
+            if (el) el.remove();
+          }
+          break;
+        case "TYPING":
+          if (frame.payload.groupToken === activeGroupToken && frame.payload.username !== myUsername) {
+            handleIncomingTyping(frame.payload.username, frame.payload.isTyping);
+          }
+          break;
+        case "USER_PFP_UPDATED":
+          // Refresh avatars locally
+          renderSidebar();
+          break;
+      }
+    }
+
+    function applySnapshot(frame) {
+      if (frame.user?.pfp) document.getElementById("my-avatar-initial").innerHTML = `<img src="${frame.user.pfp}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+      else document.getElementById("my-avatar-initial").innerText = myUsername[0].toUpperCase();
+
+      localFriends = frame.friends || [];
+      localGroups = frame.groups || [];
+      
+      // Seed Online Map
+      onlineMap = {};
+      localFriends.forEach(f => {
+        const other = f.user1 === myUsername ? f.user2 : f.user1;
+        onlineMap[other] = f.online;
+      });
+      localGroups.forEach(g => {
+        (g.members || []).forEach(m => onlineMap[m.username] = m.online);
       });
 
-      document.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.ctrlKey || e.altKey || e.metaKey) return;
-        if (e.key.length === 1) {
-          const chatInput = document.getElementById('message-input');
-          const chatArea = document.getElementById('chat-input-area');
-          if (chatInput && chatArea && !chatArea.classList.contains('hidden')) {
-            chatInput.focus();
-          }
+      renderSidebar();
+    }
+
+    // ==========================================
+    // 5. UI RENDERING
+    // ==========================================
+    function renderSidebar() {
+      const fList = document.getElementById("friends-list");
+      fList.innerHTML = "";
+      localFriends.filter(f => f.status === "accepted").forEach(f => {
+        const otherUser = f.user1 === myUsername ? f.user2 : f.user1;
+        const dmToken = "dm_" + [f.user1, f.user2].sort().join("_");
+        fList.appendChild(createListItem(otherUser, dmToken, f.pfp, true));
+      });
+
+      const gList = document.getElementById("groups-list");
+      gList.innerHTML = "";
+      localGroups.forEach(g => {
+        gList.appendChild(createListItem(g.group_name, g.group_token, null, false));
+      });
+      
+      updatePresenceIndicators();
+    }
+
+    function createListItem(name, token, pfp, isUser) {
+      const div = document.createElement("div");
+      div.className = `list-item ${activeGroupToken === token ? 'active' : ''}`;
+      div.onclick = () => openChat(token, name, isUser);
+
+      if (isUser) {
+        const wrap = document.createElement("div");
+        wrap.className = "avatar-wrap";
+        const img = document.createElement("div");
+        img.className = "avatar-img";
+        if (pfp) img.innerHTML = `<img src="${pfp}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        else img.innerText = name[0].toUpperCase();
+        
+        const badge = document.createElement("div");
+        badge.className = "status-badge";
+        badge.setAttribute("data-user", name);
+        
+        wrap.appendChild(img);
+        wrap.appendChild(badge);
+        div.appendChild(wrap);
+      }
+      
+      const span = document.createElement("span");
+      span.innerText = isUser ? `@${name}` : `# ${name}`;
+      div.appendChild(span);
+      
+      return div;
+    }
+
+    function updatePresenceIndicators() {
+      document.querySelectorAll(".status-badge").forEach(badge => {
+        const user = badge.getAttribute("data-user");
+        if (user) {
+          const isOnline = !!onlineMap[user];
+          badge.classList.toggle("online", isOnline);
+          badge.classList.toggle("offline", !isOnline);
         }
       });
     }
 
-    // ------------------------------------------------------------------
-    // TYPING INDICATOR LOGIC
-    // ------------------------------------------------------------------
-    function onMessageInput() {
-      if (!activeGroupToken) return;
-      const now = Date.now();
-      if (now - lastSentTyping > 1500) {
-        sendTyping(activeGroupToken, true);
-        lastSentTyping = now;
+    // ==========================================
+    // 6. CHAT LOGIC & TYPING
+    // ==========================================
+    async function openChat(token, name, isDM) {
+      activeGroupToken = token;
+      document.getElementById("chat-header").innerText = isDM ? `@${name}` : `# ${name}`;
+      
+      document.querySelectorAll(".list-item").forEach(el => el.classList.remove("active"));
+      event.currentTarget.classList.add("active");
+
+      const panel = document.getElementById("chat-messages-panel");
+      panel.innerHTML = "<div style='color:var(--text-muted);text-align:center;'>Yükleniyor...</div>";
+      
+      // Clear typing states
+      currentTypers.clear();
+      renderTypingText();
+
+      try {
+        // If DM is unopened server-side, this validates/creates it
+        if (isDM && token.startsWith("dm_")) {
+           await api("/api/dm/open", { method: "POST", body: JSON.stringify({ targetUsername: name }) });
+        }
+        const msgs = await api(`/api/messages/${token}?limit=50`);
+        panel.innerHTML = "";
+        msgs.forEach(msg => renderSingleMessage(msg));
+        panel.scrollTop = panel.scrollHeight;
+      } catch (err) {
+        panel.innerHTML = "<div style='color:var(--danger);text-align:center;'>Mesajlar yüklenemedi.</div>";
       }
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        sendTyping(activeGroupToken, false);
+    }
+
+    async function renderSingleMessage(msg) {
+      const panel = document.getElementById("chat-messages-panel");
+      const isSelf = msg.sender === myUsername;
+      
+      const row = document.createElement("div");
+      row.className = `message-row ${isSelf ? 'self' : 'other'}`;
+      row.id = `msg-${msg.id}`;
+
+      if (!isSelf) {
+        const sender = document.createElement("div");
+        sender.className = "msg-sender";
+        sender.innerText = `@${msg.sender}`;
+        row.appendChild(sender);
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "sms-bubble";
+
+      // HTML text comes pre-escaped from server, so innerHTML is safe here
+      if (msg.content && msg.content.startsWith("img:")) {
+        const imgId = msg.content.slice(4);
+        bubble.innerText = "Yükleniyor...";
+        api(`/api/images/${imgId}`).then(res => {
+          bubble.innerHTML = `<img src="${res.content}" class="msg-img">`;
+          panel.scrollTop = panel.scrollHeight;
+        }).catch(() => bubble.innerText = "Görsel yüklenemedi");
+      } else {
+        bubble.textContent = msg.content; // Use textContent for safety fallback
+      }
+
+      row.appendChild(bubble);
+      panel.appendChild(row);
+      panel.scrollTop = panel.scrollHeight;
+    }
+
+    // TYPING SENDER (WS)
+    const typingState = {}; 
+
+    function handleInputKeydown() {
+      if (!activeGroupToken) return;
+      const state = typingState[activeGroupToken] || (typingState[activeGroupToken] = {});
+
+      if (!state.isTyping) {
+        state.isTyping = true;
+        sendTypingWS(activeGroupToken, true);
+      }
+
+      clearTimeout(state.timer);
+      state.timer = setTimeout(() => {
+        state.isTyping = false;
+        sendTypingWS(activeGroupToken, false);
       }, 3000);
     }
 
-    function sendTyping(groupToken, isTyping) {
-      fetch(`${BACKEND}/api/typing`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupToken, isTyping })
+    function handleInputSendOrBlur() {
+      if (!activeGroupToken) return;
+      const state = typingState[activeGroupToken];
+      if (!state) return;
+      clearTimeout(state.timer);
+      if (state.isTyping) {
+        state.isTyping = false;
+        sendTypingWS(activeGroupToken, false);
+      }
+    }
+
+    function sendTypingWS(groupToken, isTyping) {
+      wsSend({
+        frameType: "P-FRAME",
+        type: "TYPING",
+        payload: { groupToken, isTyping }
       });
     }
 
-    function clearTyping() {
-      if (!activeGroupToken) return;
-      clearTimeout(typingTimeout);
-      sendTyping(activeGroupToken, false);
-      lastSentTyping = 0;
-    }
+    // TYPING RECEIVER (SSE)
+    const currentTypers = new Set();
+    const typingUIResetTimers = {};
 
-    function renderTypingUI() {
-      const bar = document.getElementById("typing-indicator-bar");
-      if (!bar) return;
-      if (currentTypers.size === 0) {
-        bar.innerText = "";
-        return;
-      }
-      const typers = Array.from(currentTypers);
-      if (typers.length === 1) {
-        bar.innerText = `${typers[0]} yazıyor...`;
-      } else if (typers.length === 2) {
-        bar.innerText = `${typers[0]} ve ${typers[1]} yazıyor...`;
+    function handleIncomingTyping(username, isTyping) {
+      clearTimeout(typingUIResetTimers[username]);
+
+      if (isTyping) {
+        currentTypers.add(username);
+        // Safety timeout in case isTyping:false is dropped
+        typingUIResetTimers[username] = setTimeout(() => {
+          currentTypers.delete(username);
+          renderTypingText();
+        }, 7000);
       } else {
-        bar.innerText = `${typers.length} kişi yazıyor...`;
+        currentTypers.delete(username);
       }
+      renderTypingText();
     }
 
-    function processAndSendImageMessage(input) {
-      if (!input.files.length || !activeGroupToken) return;
-      const file = input.files[0];
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = async () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width, height = img.height;
-          const maxDim = 1200;
-          if (width > maxDim || height > maxDim) {
-            if (width > height) { height *= maxDim / width; width = maxDim; }
-            else { width *= maxDim / height; height = maxDim; }
-          }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          let quality = 0.85;
-          let base64 = canvas.toDataURL("image/jpeg", quality);
-          const MAX_IMAGE_BYTES = 1024 * 1024;
-          while (base64.length > MAX_IMAGE_BYTES && quality > 0.1) { quality -= 0.08; base64 = canvas.toDataURL("image/jpeg", quality); }
-          if (base64.length > MAX_IMAGE_BYTES) { displayFeedback("chat-feedback", "Görsel boyutu 1MB sınırını aşıyor!", false); return; }
-          
-          displayFeedback("chat-feedback", "", true);
-          sendChatMessagePayload(base64);
-          input.value = "";
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function sendChatMessagePayload(content) {
-      if (!activeGroupToken) return;
-      const replyData = activeReplyTarget ? { ...activeReplyTarget } : null;
-      cancelReply();
-      
-      const res = await fetch(`${BACKEND}/api/messages/send`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({
-          groupToken: activeGroupToken, content,
-          replyToSender: replyData ? replyData.sender : null,
-          replyToContent: replyData ? replyData.content : null
-        })
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        displayFeedback("chat-feedback", data.error || "Mesaj gönderilemedi", false);
-      }
-    }
-
-    async function deleteMessage(messageId, createdAt) {
-      if (!confirm("Bu mesajı silmek istediğinizden emin misiniz?")) return;
-      const res = await fetch(`${BACKEND}/api/messages/delete`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ messageId, groupToken: activeGroupToken })
-      });
-      if (!res.ok) { const data = await res.json(); alert(data.error || "Mesaj silinemedi"); }
-    }
-
-   function renderUserAvatar(username, pfpUrl, containerId = "user-avatar-container") {
-      const container = document.getElementById(containerId);
-      container.innerHTML = "";
-      container.style.position = "relative"; 
-      container.style.display = "inline-block";
-
-      if (pfpUrl) { 
-        const img = document.createElement("img"); img.src = pfpUrl; img.className = "avatar-img"; 
-        container.appendChild(img); 
-      } else { 
-        const div = document.createElement("div"); div.className = "avatar-img"; div.innerText = username[0].toUpperCase(); 
-        container.appendChild(div); 
-      }
-      
-      const statusBadge = document.createElement("div");
-      statusBadge.className = "status-badge online";
-      statusBadge.style.width = "12px";
-      statusBadge.style.height = "12px";
-      statusBadge.style.borderColor = "#0f172a";
-      container.appendChild(statusBadge);
-    }
-
-    function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        gainNode = audioCtx.createGain();
-        const audioEl = document.getElementById("notify-audio");
-        const src = audioCtx.createMediaElementSource(audioEl);
-        src.connect(gainNode); gainNode.connect(audioCtx.destination);
-      }
-      setGain(parseFloat(localStorage.getItem("sound_db") || "0"));
-    }
-    function setGain(db) { if (gainNode) gainNode.gain.setValueAtTime(Math.pow(10, db / 20), audioCtx.currentTime); }
-    function playNotification() {
-      if (!document.hasFocus()) {
-        const audio = document.getElementById("notify-audio");
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-        audio.currentTime = 0; audio.play().catch(() => {});
-      }
-    }
-    function previewAudio() {
-      initAudio();
-      setGain(parseFloat(document.getElementById("volume-db-slider").value));
-      const audio = document.getElementById("notify-audio");
-      audio.currentTime = 0; audio.play();
-    }
-
-    async function login() {
-      let u = document.getElementById("username").value.toLowerCase().replace(/[^a-z]/g, "");
-      let p = document.getElementById("password").value;
-      const res = await fetch(`${BACKEND}/api/login`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: u, password: p })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        token = data.token; currentUser = data.username; currentRole = data.role; currentUserPfp = data.pfp || "";
-        localStorage.setItem("token", token);
-        localStorage.setItem("username", currentUser);
-        localStorage.setItem("role", currentRole);
-        localStorage.setItem("pfp", currentUserPfp);
-        document.getElementById("password").value = ""; 
-        location.reload();
-      } else {
-        displayFeedback("auth-feedback", data.error, false);
-      }
-    }
-
-    async function register() {
-      let u = document.getElementById("reg-username").value.toLowerCase().replace(/[^a-z]/g, "");
-      let p = document.getElementById("reg-password").value;
-      const res = await fetch(`${BACKEND}/api/register`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: u, password: p })
-      });
-      const data = await res.json();
-      displayFeedback("auth-feedback", data.message || data.error, res.ok);
-      document.getElementById("reg-password").value = "";
-    }
-
-    async function logout() {
-      if (eventSource) eventSource.close();
-      try { await fetch(`${BACKEND}/api/logout`, { method: "POST", headers: { Authorization: token } }); } catch (e) {}
-      localStorage.clear();
-      location.reload();
-    }
-
-    function handlePresenceChange(targetUsername, isOnline) {
-      onlineMap[targetUsername] = isOnline;
-      
-      // Update sidebar badges
-      document.querySelectorAll(`.status-badge[data-user="${CSS.escape(targetUsername)}"]`).forEach(badge => {
-        badge.classList.toggle("online", isOnline);
-        badge.classList.toggle("offline", !isOnline);
-      });
-
-      // Update DM Header if it is open
-      const dmSub = document.getElementById("active-subtitle");
-      if (dmSub && dmSub.getAttribute("data-dm-user") === targetUsername && !dmSub.classList.contains("hidden")) {
-        dmSub.innerText = isOnline ? "Çevrimiçi" : "Çevrimdışı";
-        dmSub.style.color = isOnline ? "var(--success)" : "var(--text-muted)";
-      }
-    }
-
-    async function connectStream() {
-      const res = await fetch(`${BACKEND}/api/stream/token`, { method: "POST", headers: { Authorization: token } });
-      if (!res.ok) return; 
-      const { streamToken } = await res.json();
-      startStream(streamToken);
-    }
-
-    function startStream(streamToken) {
-      if (eventSource) eventSource.close();
-      eventSource = new EventSource(`${BACKEND}/api/stream?token=${streamToken}`);
-
-      eventSource.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-
-        // ----------------- I-FRAME SETUP -----------------
-        if (data.frameType === "I-FRAME") {
-          onlineMap = {}; // Reset global map on full snapshot
-          
-          cachedFriends = data.friends || [];
-          cachedFriends.forEach(f => {
-            const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
-            onlineMap[otherUser] = f.online;
-          });
-
-          cachedGroups = data.groups || [];
-          cachedGroups.forEach(g => {
-            if (g.members) {
-              groupMembersCache[g.group_token] = { groupInfo: g, members: g.members };
-              g.members.forEach(m => onlineMap[m.username] = m.online);
-            }
-          });
-
-          renderFriends(cachedFriends);
-          renderGroups(cachedGroups);
-          
-          if (data.user && data.user.pfp) {
-            currentUserPfp = data.user.pfp;
-            localStorage.setItem("pfp", currentUserPfp);
-            renderUserAvatar(currentUser, currentUserPfp);
-          }
-          return;
-        }
-
-        // ----------------- P-FRAME PATCHES -----------------
-        switch (data.type) {
-          case "NEW_MESSAGE": {
-            const gt = data.payload.group_token;
-            if (chatMessagesCache[gt]) { chatMessagesCache[gt].messages.push(data.payload); touchCacheOrder(gt); }
-            
-            if (gt === activeGroupToken) {
-              const isMyMessage = data.payload.sender === currentUser;
-              renderMessagesFromCache(gt, isMyMessage); 
-            } else { 
-              unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; renderFriends(cachedFriends); renderGroups(cachedGroups); 
-            }
-            if (data.payload.sender !== currentUser) playNotification();
-            break;
-          }
-          case "MESSAGE_DELETED": {
-            const gt = data.payload.groupToken;
-            if (chatMessagesCache[gt]) chatMessagesCache[gt].messages = chatMessagesCache[gt].messages.filter(m => m.id !== data.payload.messageId);
-            if (gt === activeGroupToken) renderMessagesFromCache(gt);
-            break;
-          }
-          case "FRIEND_REQUEST": {
-            cachedFriends.push({ user1: data.payload.from, user2: currentUser, status: "pending" });
-            renderFriends(cachedFriends);
-            break;
-          }
-          case "FRIEND_ACCEPTED": {
-            const mine = data.payload.friendRowFor[currentUser];
-            if (mine) {
-              const otherUser = mine.user1 === currentUser ? mine.user2 : mine.user1;
-              if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; 
-              
-              const idx = cachedFriends.findIndex(f =>
-                (f.user1 === mine.user1 && f.user2 === mine.user2) || (f.user1 === mine.user2 && f.user2 === mine.user1));
-              if (idx >= 0) cachedFriends[idx] = mine; else cachedFriends.push(mine);
-              renderFriends(cachedFriends);
-            }
-            break;
-          }
-          case "FRIEND_REMOVED": {
-            cachedFriends = cachedFriends.filter(f => !(f.user1 === data.payload.user1 && f.user2 === data.payload.user2));
-            renderFriends(cachedFriends);
-            break;
-          }
-          case "GROUP_MEMBER_ADDED": {
-            const gt = data.payload.groupToken;
-            if (!cachedGroups.find(g => g.group_token === gt)) cachedGroups.push(data.payload.group);
-            renderGroups(cachedGroups);
-            if (groupMembersCache[gt]) {
-              groupMembersCache[gt].members.push(data.payload.newMember);
-              if (!(data.payload.newMember.username in onlineMap)) {
-                  onlineMap[data.payload.newMember.username] = false; 
-              }
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            break;
-          }
-          case "GROUP_MEMBER_LEFT": {
-            const gt = data.payload.groupToken;
-            if (data.payload.username === currentUser) {
-              cachedGroups = cachedGroups.filter(g => g.group_token !== gt);
-              delete chatMessagesCache[gt]; delete groupMembersCache[gt];
-              if (activeGroupToken === gt) showAddFriendsView();
-              renderGroups(cachedGroups);
-            } else if (groupMembersCache[gt]) {
-              groupMembersCache[gt].members = groupMembersCache[gt].members.filter(m => m.username !== data.payload.username);
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            break;
-          }
-          case "GROUP_SETTING_UPDATED": {
-            const gt = data.payload.groupToken;
-            if (groupMembersCache[gt]) {
-              groupMembersCache[gt].groupInfo.allow_sub_invites = data.payload.allow_sub_invites;
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            const g = cachedGroups.find(g => g.group_token === gt);
-            if (g) g.allow_sub_invites = data.payload.allow_sub_invites;
-            break;
-          }
-          case "GROUP_PERM_UPDATED": {
-            const gt = data.payload.groupToken;
-            if (groupMembersCache[gt]) {
-              const m = groupMembersCache[gt].members.find(m => m.username === data.payload.username);
-              if (m) m.can_add_members = data.payload.can_add_members;
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            break;
-          }
-          case "PRESENCE_CHANGED": {
-            handlePresenceChange(data.payload.username, data.payload.online);
-            break;
-          }
-          case "TYPING": {
-            const { groupToken, username, isTyping } = data.payload;
-            if (groupToken !== activeGroupToken) break; 
-            if (username === currentUser) break; 
-
-            if (isTyping) {
-              currentTypers.add(username);
-              clearTimeout(typingTimers[username]);
-              typingTimers[username] = setTimeout(() => {
-                currentTypers.delete(username);
-                renderTypingUI();
-              }, 5000);
-            } else {
-              currentTypers.delete(username);
-              clearTimeout(typingTimers[username]);
-            }
-            renderTypingUI();
-            break;
-          }
-        }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setTimeout(connectStream, 3000);
-      };
-    }
-
-    function renderFriends(friends) {
-      const sidebarList = document.getElementById("friends-sidebar-list");
-      const pendingList = document.getElementById("pending-friends-list");
-      sidebarList.innerHTML = ""; pendingList.innerHTML = "";
-      acceptedFriendsCache = [];
-
-      friends.forEach(f => {
-        const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
-        if (f.status === "accepted") {
-          acceptedFriendsCache.push({ username: otherUser, pfp: f.pfp });
-          const dmT = "dm_" + [currentUser, otherUser].sort().join("_");
-          const unread = unreadCounts[dmT] || 0;
-
-          const item = document.createElement("div");
-          item.className = `list-item ${dmT === activeGroupToken ? 'active' : ''}`;
-          item.setAttribute("data-token", dmT);
-
-          const left = document.createElement("div");
-          left.style.cssText = "display:flex; align-items:center; gap:10px;";
-          
-          const avatarWrap = document.createElement("div");
-          avatarWrap.style.cssText = "width:28px;height:28px; position:relative;"; 
-          
-          if (f.pfp) { const img = document.createElement("img"); img.src = f.pfp; img.className = "avatar-img"; img.style.cssText = "width:28px;height:28px;"; avatarWrap.appendChild(img); }
-          else { const div = document.createElement("div"); div.className = "avatar-img"; div.style.cssText = "width:28px;height:28px;font-size:11px;"; div.innerText = otherUser[0].toUpperCase(); avatarWrap.appendChild(div); }
-          
-          const statusBadge = document.createElement("div");
-          statusBadge.className = `status-badge ${onlineMap[otherUser] ? 'online' : 'offline'}`;
-          statusBadge.setAttribute("data-user", otherUser);
-          statusBadge.style.width = "9px";
-          statusBadge.style.height = "9px";
-          avatarWrap.appendChild(statusBadge);
-
-          const nameSpan = document.createElement("span"); nameSpan.innerText = `@${otherUser}`;
-          left.appendChild(avatarWrap); left.appendChild(nameSpan);
-          item.appendChild(left);
-          if (unread > 0) { const badge = document.createElement("span"); badge.className = "unread-badge"; badge.innerText = `[${unread}]`; item.appendChild(badge); }
-
-          item.onclick = () => { openDM(otherUser); toggleMobileSidebar(false); };
-          sidebarList.appendChild(item);
-        } else if (f.status === "pending" && f.user2 === currentUser) {
-          const pItem = document.createElement("div");
-          pItem.style.cssText = "display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; background:var(--bg-main); padding:8px 12px; border-radius:6px;";
-          const nameSpan = document.createElement("span"); nameSpan.innerText = `@${f.user1}`;
-          const acceptBtn = document.createElement("button");
-          acceptBtn.style.cssText = "padding:4px 10px; font-size:12px;"; acceptBtn.innerText = "Kabul Et";
-          acceptBtn.onclick = () => acceptFriend(f.user1);
-          pItem.appendChild(nameSpan); pItem.appendChild(acceptBtn);
-          pendingList.appendChild(pItem);
-        }
-      });
-    }
-
-    function renderGroups(groups) {
-      const list = document.getElementById("groups-sidebar-list");
-      list.innerHTML = "";
-      groups.forEach(g => {
-        if (g.group_name.startsWith("@")) return;
-        const unread = unreadCounts[g.group_token] || 0;
-        const item = document.createElement("div");
-        item.className = `list-item ${g.group_token === activeGroupToken ? 'active' : ''}`;
-        item.setAttribute("data-token", g.group_token);
-
-        const nameSpan = document.createElement("span");
-        nameSpan.innerText = `# ${g.group_name}`; 
-        item.appendChild(nameSpan);
-        if (unread > 0) { const badge = document.createElement("span"); badge.className = "unread-badge"; badge.innerText = `[${unread}]`; item.appendChild(badge); }
-
-        item.onclick = () => { selectGroup(g.group_token, g.group_name); toggleMobileSidebar(false); };
-        list.appendChild(item);
-      });
-    }
-
-    async function loadGroupMembers(groupToken) {
-      if (groupMembersCache[groupToken]) { renderGroupMembersFromCache(groupToken); return; }
-      const container = document.getElementById("members-list-container");
-      container.innerHTML = `<div class="loading-display-small">YÜKLENİYOR...</div>`;
-
-      const res = await fetch(`${BACKEND}/api/groups/${groupToken}/members`, { headers: { "Authorization": token } });
-      if (groupToken !== activeGroupToken) return;
-      if (!res.ok) { container.innerHTML = ""; return; }
-
-      const data = await res.json();
-      if (groupToken !== activeGroupToken) return;
-
-      if (data.members) {
-        data.members.forEach(m => {
-           if (!(m.username in onlineMap)) onlineMap[m.username] = m.online;
-        });
-      }
-
-      groupMembersCache[groupToken] = data;
-      renderGroupMembersFromCache(groupToken);
-    }
-
-    function renderGroupMembersFromCache(groupToken) {
-      if (groupToken !== activeGroupToken) return;
-      const data = groupMembersCache[groupToken];
-      if (!data) return;
-
-      const groupInfo = data.groupInfo || {};
-      const members = data.members || [];
-      cachedGroupMembers = members.map(m => m.username);
-
-      const isOwner = groupInfo.created_by === currentUser || currentRole === "admin";
-      const policyPanel = document.getElementById("owner-policy-panel");
-      policyPanel.innerHTML = "";
-      if (isOwner) {
-        const subInviteAllowed = groupInfo.allow_sub_invites !== 0;
-        const row = document.createElement("div");
-        row.style.cssText = "background:var(--bg-main); padding:8px 10px; border-radius:6px; font-size:11px; display:flex; align-items:center; justify-content:space-between;";
-        const label = document.createElement("span"); label.innerText = "Alt Davet Yetkisi:";
-        const btn = document.createElement("button");
-        btn.style.cssText = `padding:2px 6px; font-size:10px; background:${subInviteAllowed ? 'var(--success)' : 'var(--danger)'};`;
-        btn.innerText = subInviteAllowed ? 'AÇIK' : 'KAPALI';
-        btn.onclick = () => toggleSubInvitesPolicy(subInviteAllowed ? 0 : 1);
-        row.appendChild(label); row.appendChild(btn);
-        policyPanel.appendChild(row);
-      }
-
-      const container = document.getElementById("members-list-container");
-      container.innerHTML = "";
-      
-      members.forEach(m => {
-        const isMemberOwner = m.username === groupInfo.created_by || m.username === "totally";
-        const canAdd = m.can_add_members !== 0;
-        const item = document.createElement("div");
-        item.className = "member-list-item";
-
-        const left = document.createElement("div");
-        left.style.cssText = "display:flex; align-items:center; gap:8px;";
-        
-        const avatarWrap = document.createElement("div");
-        avatarWrap.style.cssText = "width:24px;height:24px; position:relative;"; 
-        
-        if (m.pfp) { 
-          const img = document.createElement("img"); 
-          img.src = m.pfp; 
-          img.className = "avatar-img"; 
-          img.style.cssText = "width:24px;height:24px;"; 
-          avatarWrap.appendChild(img); 
-        } else { 
-          const div = document.createElement("div"); 
-          div.className = "avatar-img"; 
-          div.style.cssText = "width:24px;height:24px;font-size:10px;"; 
-          div.innerText = m.username[0].toUpperCase(); 
-          avatarWrap.appendChild(div); 
-        }
-        
-        const statusBadge = document.createElement("div");
-        const isOnline = m.username === currentUser ? true : !!onlineMap[m.username];
-        statusBadge.className = `status-badge ${isOnline ? 'online' : 'offline'}`;
-        if (m.username !== currentUser) statusBadge.setAttribute("data-user", m.username);
-        
-        statusBadge.style.width = "7px";
-        statusBadge.style.height = "7px";
-        statusBadge.style.borderWidth = "1.5px"; 
-        avatarWrap.appendChild(statusBadge);
-
-        const nameSpan = document.createElement("span"); 
-        nameSpan.style.cssText = "font-size: 12px; font-weight: 500;";
-        nameSpan.innerText = `@${m.username}` + (isMemberOwner ? " " : "");
-        
-        if (isMemberOwner) { 
-          const badge = document.createElement("span"); 
-          badge.className = "badge-owner"; 
-          badge.innerText = "Kurucu"; 
-          nameSpan.appendChild(badge); 
-        }
-        
-        left.appendChild(avatarWrap); 
-        left.appendChild(nameSpan);
-        item.appendChild(left);
-
-        if (isOwner && !isMemberOwner) {
-          const actions = document.createElement("div"); 
-          actions.style.cssText = "display:flex; gap:4px;";
-          
-          const permBtn = document.createElement("button");
-          permBtn.title = canAdd ? "Davet Yetkisini Kapat" : "Davet Yetkisini Aç";
-          permBtn.style.cssText = `padding:2px 6px; font-size:10px; background:${canAdd ? 'var(--accent)' : '#475569'};`;
-          permBtn.innerText = canAdd ? "➕" : "🚫";
-          permBtn.onclick = () => toggleMemberInvitePerm(m.username, canAdd ? 0 : 1);
-          
-          const kickBtn = document.createElement("button"); 
-          kickBtn.className = "danger";
-          kickBtn.title = "Gruptan Çıkar"; 
-          kickBtn.style.cssText = "padding:2px 6px; font-size:10px;"; 
-          kickBtn.innerText = "❌";
-          kickBtn.onclick = () => kickGroupMember(m.username);
-          
-          actions.appendChild(permBtn); 
-          actions.appendChild(kickBtn);
-          item.appendChild(actions);
-        }
-        
-        container.appendChild(item);
-      });
-    }
-
-    async function toggleSubInvitesPolicy(allowSubInvites) {
-      if (!activeGroupToken) return;
-      await fetch(`${BACKEND}/api/groups/toggle-sub-invites`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupToken: activeGroupToken, allowSubInvites })
-      });
-    }
-
-    async function toggleMemberInvitePerm(targetUsername, canAddMembers) {
-      if (!activeGroupToken) return;
-      await fetch(`${BACKEND}/api/groups/toggle-member-invite-perm`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupToken: activeGroupToken, targetUsername, canAddMembers })
-      });
-    }
-
-    async function kickGroupMember(targetUsername) {
-      if (!activeGroupToken) return;
-      await fetch(`${BACKEND}/api/groups/remove-member`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupToken: activeGroupToken, targetUsername })
-      });
-    }
-
-    async function loadMessages(groupToken) {
-      if (chatMessagesCache[groupToken]) { renderMessagesFromCache(groupToken, true); touchCacheOrder(groupToken); return; }
-
-      const container = document.getElementById("chat-messages-panel");
-      container.innerHTML = `<div class="loading-display">YÜKLENİYOR...</div>`;
-
-      const res = await fetch(`${BACKEND}/api/messages/${groupToken}?limit=50`, { headers: { "Authorization": token } });
-      if (groupToken !== activeGroupToken) return;
-      if (!res.ok) { container.innerHTML = ""; return; }
-
-      const msgs = await res.json();
-      if (groupToken !== activeGroupToken) return;
-
-      chatMessagesCache[groupToken] = { messages: msgs, hasMore: msgs.length === 50, loadingMore: false, _touched: Date.now() };
-      renderMessagesFromCache(groupToken, true);
-    }
-
-    async function loadOlderMessages(groupToken) {
-      const cache = chatMessagesCache[groupToken];
-      if (!cache || !cache.hasMore || cache.loadingMore || !cache.messages.length) return;
-      cache.loadingMore = true;
-      const container = document.getElementById("chat-messages-panel");
-      const prevScrollHeight = container.scrollHeight;
-
-      const oldestId = cache.messages[0].id;
-      const res = await fetch(`${BACKEND}/api/messages/${groupToken}?before=${oldestId}&limit=50`, { headers: { "Authorization": token } });
-      cache.loadingMore = false;
-      if (groupToken !== activeGroupToken || !res.ok) return;
-
-      const older = await res.json();
-      cache.messages = [...older, ...cache.messages];
-      cache.hasMore = older.length === 50;
-      renderMessagesFromCache(groupToken);
-      container.scrollTop = container.scrollHeight - prevScrollHeight;
-    }
-
-    let scrollHandlerBound = null;
-    function bindScrollBackHandler() {
-      const container = document.getElementById("chat-messages-panel");
-      if (scrollHandlerBound) container.removeEventListener("scroll", scrollHandlerBound);
-      scrollHandlerBound = () => {
-        if (container.scrollTop < 80) loadOlderMessages(activeGroupToken);
-      };
-      container.addEventListener("scroll", scrollHandlerBound);
-    }
-
-    function renderMessagesFromCache(groupToken, forceScrollToBottom = false) {
-      if (groupToken !== activeGroupToken) return;
-      const container = document.getElementById("chat-messages-panel");
-      const cache = chatMessagesCache[groupToken];
-      const msgs = cache ? cache.messages : [];
-      
-      const wasNearBottom = forceScrollToBottom || (container.scrollHeight - container.scrollTop - container.clientHeight < 800);
-
-      container.innerHTML = "";
-      if (cache && cache.hasMore) {
-        const loadMore = document.createElement("div");
-        loadMore.className = "loading-more-msgs";
-        loadMore.innerText = cache.loadingMore ? "Yükleniyor..." : "Daha eski mesajlar için yukarı kaydırın";
-        container.appendChild(loadMore);
-      }
-
-      const FIVE_MIN_MS = 5 * 60 * 1000;
-      const groups = [];
-      msgs.forEach(msg => {
-        const lastGroup = groups[groups.length - 1];
-        if (lastGroup && lastGroup.sender === msg.sender &&
-            (msg.created_at - lastGroup.messages[lastGroup.messages.length - 1].created_at) <= FIVE_MIN_MS) {
-          lastGroup.messages.push(msg);
-        } else {
-          groups.push({ sender: msg.sender, pfp: msg.pfp, messages: [msg] });
-        }
-      });
-
-      groups.forEach(group => {
-        const isSelf = group.sender === currentUser;
-        const row = document.createElement("div");
-        row.className = `message-group-row ${isSelf ? 'self' : 'other'}`;
-
-        if (!isSelf) {
-          const senderHeader = document.createElement("div");
-          senderHeader.className = "message-sender-header";
-          const avatarWrap = document.createElement("div"); avatarWrap.style.display = "inline-block";
-          if (group.pfp) { const img = document.createElement("img"); img.src = group.pfp; img.className = "avatar-img"; avatarWrap.appendChild(img); }
-          else { const div = document.createElement("div"); div.className = "avatar-img"; div.innerText = group.sender[0].toUpperCase(); avatarWrap.appendChild(div); }
-          
-          const nameSpan = document.createElement("span"); nameSpan.innerText = group.sender;
-          senderHeader.appendChild(avatarWrap); 
-          senderHeader.appendChild(nameSpan);
-          
-          const groupObj = cachedGroups.find(g => g.group_token === groupToken);
-          const creator = groupObj ? groupObj.created_by : null;
-          
-          if (group.sender === creator || group.sender === "totally" || group.sender === "mehmetfezup") {
-            const badge = document.createElement("span");
-            badge.className = "badge-owner";
-            badge.innerText = "Kurucu";
-            badge.style.marginLeft = "6px";
-            senderHeader.appendChild(badge);
-          }
-          
-          row.appendChild(senderHeader);
-        }
-
-        let lastMsgTime = "";
-        group.messages.forEach((msg, idx) => {
-          const isLast = idx === group.messages.length - 1;
-          const isImage = isImageRef(msg.content);
-          const msgTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          if (isLast) lastMsgTime = msgTime;
-
-          const bubbleWrapper = document.createElement("div");
-          bubbleWrapper.className = "sms-bubble-wrapper";
-
-          const actionBar = document.createElement("div");
-          actionBar.className = "msg-action-bar";
-          const replyBtn = document.createElement("button");
-          replyBtn.className = "msg-action-btn"; replyBtn.innerHTML = "↩"; replyBtn.title = "Mesajı Yanıtla";
-          replyBtn.onclick = () => setReplyTarget(msg.sender, msg.content);
-          actionBar.appendChild(replyBtn);
-          if (isSelf) {
-            const deleteBtn = document.createElement("button");
-            deleteBtn.className = "msg-action-btn delete-btn"; deleteBtn.innerHTML = "🗑"; deleteBtn.title = "Mesajı Sil";
-            deleteBtn.onclick = () => deleteMessage(msg.id, msg.created_at);
-            actionBar.appendChild(deleteBtn);
-          }
-          bubbleWrapper.appendChild(actionBar);
-
-          const bubble = document.createElement("div");
-          bubble.className = "sms-bubble";
-          if (!isLast) bubble.style.marginBottom = "4px";
-
-          if (msg.reply_to_sender) {
-            const cleanReplyText = isImageRef(msg.reply_to_content) ? "📷 Görsel" : msg.reply_to_content;
-            const replyBox = document.createElement("div");
-            replyBox.style.cssText = "font-size: calc(var(--chat-font-size) * 0.785); opacity: 0.7; border-left: 2px solid var(--accent); padding-left: 6px; margin-bottom: 4px; border-radius: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;";
-            // Use innerHTML safely here, as backend handles escaping
-            replyBox.innerHTML = `<strong>@${msg.reply_to_sender}</strong>: ${cleanReplyText}`;
-            bubble.appendChild(replyBox);
-          }
-
-          if (isImage) {
-            const imgWrap = document.createElement("div"); imgWrap.className = "chat-img-wrapper";
-            const imgEl = document.createElement("img");
-            imgEl.className = "chat-img-attachment"; imgEl.title = "Görseli Büyüt"; imgEl.draggable = false;
-            imgEl.alt = "Yükleniyor...";
-            const dlBtn = document.createElement("button");
-            dlBtn.className = "chat-img-download-btn"; dlBtn.title = "Görseli İndir"; dlBtn.innerText = "⬇";
-
-            resolveImageContent(msg.content).then(src => {
-              if (!src) return;
-              imgEl.src = src;
-              imgEl.onload = () => { if (wasNearBottom) container.scrollTop = container.scrollHeight; };
-              imgEl.onclick = () => openImageInspector(src);
-              dlBtn.onclick = (e) => { e.stopPropagation(); downloadImage(src, `gorsel_${msg.created_at}.jpg`); };
-            });
-
-            imgWrap.appendChild(imgEl); imgWrap.appendChild(dlBtn);
-            bubble.appendChild(imgWrap);
-          } else {
-            const textSpan = document.createElement("span");
-            textSpan.innerHTML = msg.content; 
-            bubble.appendChild(textSpan);
-          }
-
-          bubbleWrapper.appendChild(bubble);
-          row.appendChild(bubbleWrapper);
-        });
-
-        if (lastMsgTime) {
-          const timeDiv = document.createElement("div"); timeDiv.className = "sms-timestamp"; timeDiv.innerText = lastMsgTime;
-          row.appendChild(timeDiv);
-        }
-        container.appendChild(row);
-      });
-
-      if (wasNearBottom) container.scrollTop = container.scrollHeight;
-    }
-
-    function showAddFriendsView() {
-      activeGroupToken = "";
-      document.getElementById("btn-add-friends-tab").classList.add("active");
-      document.getElementById("active-title").innerText = "Arkadaş Ekle";
-      document.getElementById("active-subtitle").classList.add("hidden");
-      document.getElementById("header-actions").innerHTML = "";
-      document.getElementById("add-friends-panel").classList.remove("hidden");
-      document.getElementById("chat-messages-panel").classList.add("hidden");
-      document.getElementById("right-members-sidebar").classList.add("hidden");
-      document.getElementById("chat-input-area").classList.add("hidden");
-      document.querySelectorAll(".sidebar .list-item").forEach(el => el.classList.remove("active"));
-      toggleMobileSidebar(false);
-      toggleMobileMembersSidebar(false);
-      document.getElementById("mobile-members-toggle-btn").classList.add("hidden");
-      
-      // Clear typing indicator state
-      currentTypers.clear();
-      renderTypingUI();
-    }
-
-    async function selectGroup(groupToken, name) {
-      activeGroupToken = groupToken;
-      unreadCounts[groupToken] = 0;
-      
-      // Clear typing states when switching chats
-      currentTypers.clear();
-      renderTypingUI();
-
-      document.getElementById("btn-add-friends-tab").classList.remove("active");
-      document.getElementById("add-friends-panel").classList.add("hidden");
-      document.getElementById("chat-messages-panel").classList.remove("hidden");
-      document.getElementById("chat-input-area").classList.remove("hidden");
-      document.querySelectorAll(".sidebar .list-item").forEach(el => el.classList.remove("active"));
-      const activeEl = document.querySelector(`[data-token="${CSS.escape(groupToken)}"]`);
-      if (activeEl) activeEl.classList.add("active");
-
-      const headerActions = document.getElementById("header-actions");
-      headerActions.innerHTML = "";
-      toggleMobileMembersSidebar(false);
-      const membersToggleBtn = document.getElementById("mobile-members-toggle-btn");
-      
-      if (!name.startsWith("@")) {
-        document.getElementById("active-title").innerText = name;
-        document.getElementById("active-subtitle").classList.add("hidden");
-        
-        const btn = document.createElement("button");
-        btn.style.cssText = "background:var(--danger); font-size:12px; padding:6px 12px;";
-        btn.innerText = "Gruptan Ayrıl"; btn.onclick = leaveGroup;
-        headerActions.appendChild(btn);
-        document.getElementById("right-members-sidebar").classList.remove("hidden");
-        membersToggleBtn.classList.remove("hidden");
-        loadGroupMembers(groupToken);
-      } else {
-        const targetFriend = name.replace("@", "");
-        document.getElementById("active-title").innerText = `@${targetFriend}`;
-        
-        // Render DM Presence Text
-        const sub = document.getElementById("active-subtitle");
-        sub.classList.remove("hidden");
-        const isOnline = !!onlineMap[targetFriend];
-        sub.innerText = isOnline ? "Çevrimiçi" : "Çevrimdışı";
-        sub.style.color = isOnline ? "var(--success)" : "var(--text-muted)";
-        sub.setAttribute("data-dm-user", targetFriend);
-        
-        const btn = document.createElement("button");
-        btn.style.cssText = "background:var(--danger); font-size:12px; padding:6px 12px;";
-        btn.innerText = `Arkadaşlıktan Çıkar`; 
-        btn.onclick = () => unfriendUser(targetFriend);
-        headerActions.appendChild(btn);
-        document.getElementById("right-members-sidebar").classList.add("hidden");
-        membersToggleBtn.classList.add("hidden");
-      }
-
-      renderFriends(cachedFriends);
-      renderGroups(cachedGroups);
-      bindScrollBackHandler();
-      loadMessages(groupToken);
-    }
-
-    async function openDM(targetUser) {
-      const res = await fetch(`${BACKEND}/api/dm/open`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ targetUsername: targetUser })
-      });
-      const data = await res.json();
-      if (res.ok) selectGroup(data.groupToken, `@${targetUser}`);
-      else displayFeedback("add-friend-feedback", data.error, false);
-    }
-
-    async function sendFriendRequest() {
-      const target = document.getElementById("friend-target-input").value;
-      const res = await fetch(`${BACKEND}/api/friends/request`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ targetUsername: target })
-      });
-      const data = await res.json();
-      displayFeedback("add-friend-feedback", data.message || data.error, res.ok);
-      if (res.ok) document.getElementById("friend-target-input").value = "";
-    }
-
-    async function acceptFriend(target) {
-      await fetch(`${BACKEND}/api/friends/accept`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ targetUsername: target })
-      });
-    }
-
-    async function unfriendUser(target) {
-      const res = await fetch(`${BACKEND}/api/friends/unfriend`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ targetUsername: target })
-      });
-      if (res.ok) showAddFriendsView();
-    }
-
-   async function leaveGroup() {
-      if (!activeGroupToken) return;
-      const res = await fetch(`${BACKEND}/api/groups/leave`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupToken: activeGroupToken })
-      });
-      
-      if (!res.ok) { 
-        const data = await res.json(); 
-        console.warn("Backend rejected leave request:", data.error); 
-      }
-    }
-
-    function toggleCreateGroupModal(show) { document.getElementById("create-group-modal").classList.toggle("hidden", !show); }
-    function toggleAddMemberModal(show) {
-      document.getElementById("add-member-modal").classList.toggle("hidden", !show);
-      if (show) populateScrollableFriendsModal();
-    }
-
-    function populateScrollableFriendsModal() {
-      const container = document.getElementById("modal-friends-scrollable-list");
-      container.innerHTML = "";
-      const availableFriends = acceptedFriendsCache.filter(f => !cachedGroupMembers.includes(f.username));
-      if (!availableFriends.length) {
-        container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Eklenebilecek yeni arkadaş bulunamadı.</p>`;
-        return;
-      }
-      availableFriends.forEach(f => {
-        const row = document.createElement("div");
-        row.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--bg-main); border-radius:6px; min-height:44px;";
-        const left = document.createElement("div"); left.style.cssText = "display:flex; align-items:center; gap:8px;";
-        const avatarWrap = document.createElement("div"); avatarWrap.style.cssText = "width:28px;height:28px;";
-        if (f.pfp) { const img = document.createElement("img"); img.src = f.pfp; img.className = "avatar-img"; img.style.cssText = "width:28px;height:28px;"; avatarWrap.appendChild(img); }
-        else { const div = document.createElement("div"); div.className = "avatar-img"; div.style.cssText = "width:28px;height:28px;font-size:11px;"; div.innerText = f.username[0].toUpperCase(); avatarWrap.appendChild(div); }
-        const nameSpan = document.createElement("span"); nameSpan.style.cssText = "font-size:13px; font-weight:500;"; nameSpan.innerText = `@${f.username}`;
-        left.appendChild(avatarWrap); left.appendChild(nameSpan);
-        const addBtn = document.createElement("button"); addBtn.style.cssText = "padding:4px 10px; font-size:12px;"; addBtn.innerText = "Ekle";
-        addBtn.onclick = () => submitAddMemberDirect(f.username);
-        row.appendChild(left); row.appendChild(addBtn);
-        container.appendChild(row);
-      });
-    }
-
-    async function submitAddMemberDirect(targetUsername) {
-      if (!activeGroupToken) return;
-      const res = await fetch(`${BACKEND}/api/groups/add-member`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ groupToken: activeGroupToken, targetUsername })
-      });
-      const data = await res.json();
-      displayFeedback("add-member-feedback", data.message || data.error, res.ok);
-      if (res.ok) populateScrollableFriendsModal(); 
-    }
-
-    function toggleSettings(show) {
-      document.getElementById("settings-modal").classList.toggle("hidden", !show);
-      if (show) {
-        const savedDb = localStorage.getItem("sound_db") || "0";
-        const volSlider = document.getElementById("volume-db-slider");
-        if (volSlider) { volSlider.value = savedDb; document.getElementById("db-val").innerText = savedDb; }
-        checkLockStatus();
-        checkScaleLockStatus();
-        if (currentRole === "admin") {
-          document.getElementById("admin-section").classList.remove("hidden");
-          loadAdminPending();
-          loadAdminUsers();
-        }
-      }
-    }
-
-    async function createGroupFromModal() {
-      const btn = document.getElementById("modal-create-group-btn");
-      const groupName = document.getElementById("modal-group-name").value;
-      if (!groupName.trim()) return;
-      btn.disabled = true;
-      try {
-        const res = await fetch(`${BACKEND}/api/groups/create`, {
-          method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-          body: JSON.stringify({ groupName })
-        });
-        const data = await res.json();
-        displayFeedback("create-group-feedback", data.message || data.error, res.ok);
-        if (res.ok) {
-          cachedGroups.push({ group_token: data.groupToken, group_name: groupName, created_by: currentUser, allow_sub_invites: 1 });
-          renderGroups(cachedGroups);
-          toggleCreateGroupModal(false);
-          document.getElementById("modal-group-name").value = "";
-        }
-      } finally { btn.disabled = false; }
-    }
-
-    // --- EASTER EGG ---
-    function triggerEasterEgg() {
-      const audio = new Audio("easteregg.mp3");
-      const container = document.createElement("div");
-      container.style.cssText = "position:fixed; inset:0; z-index:9999; pointer-events:none; overflow:hidden;";
-      document.body.appendChild(container);
-      
-      const images = ["1.png", "2.png", "3.png"];
-      const particles = [];
-      const numParticles = 30; 
-      
-      for (let i = 0; i < numParticles; i++) {
-        const img = document.createElement("img");
-        img.src = images[i % images.length];
-        
-        // SCALED UP 200%: changed from 60px to 120px
-        img.style.cssText = "position:absolute; width:120px; height:120px; object-fit:contain;";
-        container.appendChild(img);
-        
-        particles.push({
-          el: img,
-          // Adjusted spawn bounds to account for new 120px size
-          x: Math.random() * (window.innerWidth - 120),
-          y: Math.random() * (window.innerHeight - 120),
-          vx: (Math.random() - 0.5) * 15,
-          vy: (Math.random() - 0.5) * 15
-        });
-      }
-      
-      let animationId;
-      function animate() {
-        particles.forEach(p => {
-          p.x += p.vx;
-          p.y += p.vy;
-          // Boundary collision updated for the new 120px size
-          if (p.x <= 0 || p.x >= window.innerWidth - 120) p.vx *= -1;
-          if (p.y <= 0 || p.y >= window.innerHeight - 120) p.vy *= -1;
-          p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
-        });
-        animationId = requestAnimationFrame(animate);
-      }
-      
-      audio.play().catch(e => console.warn("Easter egg audio blocked by browser:", e));
-      animate();
-      
-      audio.onended = () => {
-        cancelAnimationFrame(animationId);
-        container.remove();
-      };
+    function renderTypingText() {
+      const ind = document.getElementById("typing-indicator");
+      if (currentTypers.size === 0) ind.innerText = "";
+      else if (currentTypers.size === 1) ind.innerText = `${Array.from(currentTypers)[0]} yazıyor...`;
+      else if (currentTypers.size === 2) ind.innerText = `${Array.from(currentTypers).join(" ve ")} yazıyor...`;
+      else ind.innerText = `${currentTypers.size} kişi yazıyor...`;
     }
 
     async function sendMessage() {
       const input = document.getElementById("message-input");
-      if (!input.value.trim() || !activeGroupToken) return;
-      const content = input.value;
+      const content = input.value.trim();
+      if (!content || !activeGroupToken) return;
+
+      handleInputSendOrBlur(); // Clear typing status immediately
       input.value = "";
-      
-      clearTyping(); // Stop typing indicator broadcast instantly
 
-      const easterEggRegex = /(turkey|turkiye|türkiye|kktc|kuzey\s*kibris|kuzey\s*kıbrıs)/i;
-      if (easterEggRegex.test(content)) {
-        triggerEasterEgg();
+      try {
+        await api("/api/messages/send", {
+          method: "POST",
+          body: JSON.stringify({ groupToken: activeGroupToken, content })
+        });
+      } catch (err) {
+        console.error("Failed to send:", err);
       }
-
-      sendChatMessagePayload(content);
     }
 
-    // ---------------- Admin ----------------
-    async function loadAdminPending() {
-      const res = await fetch(`${BACKEND}/api/admin/pending`, { headers: { "Authorization": token } });
-      const pending = await res.json();
-      const list = document.getElementById("admin-pending-accounts");
-      list.innerHTML = "";
-      pending.forEach(p => {
-        const item = document.createElement("div"); item.style.margin = "4px 0";
-        const nameSpan = document.createTextNode(`${p.username} `);
-        const approveBtn = document.createElement("button"); approveBtn.innerText = "Onayla"; approveBtn.onclick = () => adminAction(p.id, "approve");
-        const denyBtn = document.createElement("button"); denyBtn.className = "danger"; denyBtn.innerText = "Reddet"; denyBtn.onclick = () => adminAction(p.id, "deny");
-        item.appendChild(nameSpan); item.appendChild(approveBtn); item.appendChild(document.createTextNode(" ")); item.appendChild(denyBtn);
-        list.appendChild(item);
-      });
-    }
-
-    async function loadAdminUsers() {
-      const res = await fetch(`${BACKEND}/api/admin/users`, { headers: { "Authorization": token } });
-      const users = await res.json();
-      const list = document.getElementById("admin-users-scrollable-list");
-      list.innerHTML = "";
-      if (!users.length) { list.innerHTML = "<p style='font-size:12px; color:var(--text-muted);'>Kullanıcı bulunamadı.</p>"; return; }
-      users.forEach(u => {
-        const row = document.createElement("div");
-        row.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--bg-main); border-radius:4px;";
-        const nameSpan = document.createElement("span"); nameSpan.style.fontSize = "13px"; nameSpan.innerText = `@${u.username} (${u.role})`;
-        row.appendChild(nameSpan);
-        if (u.username !== currentUser) {
-          const delBtn = document.createElement("button"); delBtn.className = "danger"; delBtn.style.cssText = "padding:4px 8px; font-size:11px;";
-          delBtn.innerText = "Sil"; delBtn.onclick = () => adminDeleteUser(u.username);
-          row.appendChild(delBtn);
-        } else {
-          const you = document.createElement("span"); you.style.cssText = "font-size:11px; color:var(--text-muted);"; you.innerText = "(Siz)";
-          row.appendChild(you);
-        }
-        list.appendChild(row);
-      });
-    }
-
-    async function adminAction(id, action) {
-      await fetch(`${BACKEND}/api/admin/action`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ id, action })
-      });
-      loadAdminPending();
-      loadAdminUsers();
-    }
-
-    async function adminDeleteUser(targetUsername) {
-      const res = await fetch(`${BACKEND}/api/admin/delete-user`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
-        body: JSON.stringify({ username: targetUsername })
-      });
-      const data = await res.json();
-      displayFeedback("admin-feedback", data.message || data.error, res.ok);
-      if (res.ok) loadAdminUsers();
-    }
-
-    // ---------------- Boot ----------------
-    window.onload = async () => {
-      initDisplaySettings();
-      initImageInspectorEvents();
-      initOverlayCloseEvents();
+    // ==========================================
+    // 7. AUTHENTICATION & BOOTSTRAP
+    // ==========================================
+    async function doLogin() {
+      const u = document.getElementById("username").value.trim();
+      const p = document.getElementById("password").value;
+      const err = document.getElementById("auth-error");
       
-      if (token) {
-        document.getElementById("auth-view").classList.add("hidden");
-        document.getElementById("app-container").classList.remove("hidden");
-        document.getElementById("user-display-name").innerText = currentUser;
-        document.getElementById("user-role-tag").innerText = currentRole;
-        renderUserAvatar(currentUser, currentUserPfp);
-        connectStream();
+      if (!u || !p) { err.innerText = "Eksik bilgi"; return; }
+      
+      try {
+        const res = await fetch(`${RELAY}/api/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || "Giriş başarısız");
+        
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("username", data.username);
+        location.reload(); // Reload to bootstrap cleanly
+      } catch (e) {
+        err.innerText = e.message;
+      }
+    }
 
-        const initAudioOnce = () => { 
-          initAudio(); 
-          document.removeEventListener("click", initAudioOnce); 
-        };
-        document.addEventListener("click", initAudioOnce);
+    function forceLocalLogout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      location.reload();
+    }
+
+    async function logout() {
+      try { await api("/api/logout", { method: "POST" }); } catch {}
+      teardownWS();
+      if (sse) { sse.close(); sse = null; }
+      forceLocalLogout();
+    }
+
+    // Bootstrap
+    window.onload = async () => {
+      if (sessionToken) {
+        document.getElementById("auth-view").classList.add("hidden");
+        document.getElementById("sidebar").classList.remove("hidden");
+        document.getElementById("workspace").classList.remove("hidden");
+        document.getElementById("my-username").innerText = myUsername;
+
+        wsConnect();
+        await openSSE();
       }
     };
   </script>
