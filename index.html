@@ -374,10 +374,12 @@
     let currentUserPfp = localStorage.getItem("pfp") || "";
     let activeGroupToken = "";
 
-    // RAM CACHES — this is what keeps DB reads near zero after first load.
-    // chatMessagesCache[groupToken] = { messages: [...], hasMore, loadingMore }
+    // ------------------------------------------------------------------
+    // RAM CACHES
+    // ------------------------------------------------------------------
     let chatMessagesCache = {};
     let groupMembersCache = {}; // groupToken -> { groupInfo, members }
+    let onlineMap = {};         // NEW: Global state for user presence (username -> boolean)
 
     let acceptedFriendsCache = [];
     let cachedGroupMembers = [];
@@ -388,12 +390,6 @@
     let eventSource = null;
     let audioCtx, gainNode;
 
-    // ------------------------------------------------------------------
-    // Images now live in a separate D1 database (imgdb) behind the Worker.
-    // Message content for an image is a lightweight reference "img:<id>"
-    // instead of the raw base64. This cache holds resolved base64 by id
-    // so we only fetch each image once.
-    // ------------------------------------------------------------------
     let imageCache = {};
     function isImageRef(content) {
       return typeof content === "string" && (content.startsWith("data:image/") || content.startsWith("img:"));
@@ -412,12 +408,10 @@
 
       let triggerMaintenance = false;
 
-      // Check for 502 or the new custom 999 status
       if (authCheckRes.status === 502 || authCheckRes.status === 999) {
         triggerMaintenance = true;
       } else {
         const authCheckData = await authCheckRes.json();
-        // Check if 999 is returned inside the body payload instead
         if (authCheckData === 999 || authCheckData.code === 999 || authCheckData.error === 999 || authCheckData.errorCode === 999) {
           triggerMaintenance = true;
         }
@@ -430,10 +424,8 @@
           </div>
         `;
         
-        // Auto-refresh every 5 seconds if it's on the maintenance screen
         setTimeout(() => location.reload(), 5000);
         
-        // Refresh immediately if the user tabs back into the app
         document.addEventListener("visibilitychange", () => {
           if (document.visibilityState === "visible") location.reload();
         });
@@ -442,7 +434,6 @@
         window.stop(); 
       }
     } catch (e) {
-      // If it errors out entirely (server down/no connection), refresh every 1 second
       console.warn("Could not reach backend, retrying in 1 second...", e);
       setTimeout(() => location.reload(), 1000);
     }
@@ -453,7 +444,7 @@
     
     async function resolveImageContent(content) {
       if (!content) return "";
-      if (content.startsWith("data:image/")) return content; // legacy inline images still work
+      if (content.startsWith("data:image/")) return content;
       if (content.startsWith("img:")) {
         const id = content.split(":")[1];
         if (imageCache[id]) return imageCache[id];
@@ -468,7 +459,6 @@
       return "";
     }
 
-    // Simple LRU-ish cap so long sessions don't grow RAM without bound.
     const MAX_CACHED_GROUPS = 25;
     function touchCacheOrder(groupToken) {
       chatMessagesCache[groupToken]._touched = Date.now();
@@ -548,7 +538,6 @@
     }
 
     function checkScaleLockStatus() {
-      // Limit removed, button is always enabled
       document.getElementById("apply-scale-btn").disabled = false;
     }
 
@@ -564,7 +553,6 @@
     }
 
     function checkLockStatus() {
-      // Limit removed, inputs are always enabled
       document.getElementById("volume-db-slider").disabled = false;
       document.getElementById("apply-vol-btn").disabled = false;
     }
@@ -589,7 +577,6 @@
       const cleanContent = isImageRef(content) ? "📷 Görsel" : content;
       text.innerText = `Yanıtlanıyor: @${sender}: "${cleanContent.substring(0, 40)}${cleanContent.length > 40 ? '...' : ''}"`;
       banner.classList.remove("hidden");
-      // Auto-focus chat input when replying
       document.getElementById("message-input").focus();
     }
     
@@ -779,27 +766,19 @@
     function initOverlayCloseEvents() {
       document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => { 
-          // Close the modal IF the background is clicked AND it's not the login screen
           if (e.target === overlay && overlay.id !== 'auth-view') {
             overlay.classList.add('hidden'); 
           }
         });
       });
 
-      // Global keyboard listener for instant typing focus
       document.addEventListener('keydown', (e) => {
-        // Ignore if we are already in an input, textarea, or if modifier keys are pressed
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.ctrlKey || e.altKey || e.metaKey) return;
-        
-        // If it's a printable character (length 1), auto-focus the chat input
         if (e.key.length === 1) {
           const chatInput = document.getElementById('message-input');
           const chatArea = document.getElementById('chat-input-area');
-          
-          // Only focus if the chat input is actually visible
           if (chatInput && chatArea && !chatArea.classList.contains('hidden')) {
             chatInput.focus();
-            // The browser will naturally apply this keystroke to the newly focused input
           }
         }
       });
@@ -827,8 +806,6 @@
           while (base64.length > MAX_IMAGE_BYTES && quality > 0.1) { quality -= 0.08; base64 = canvas.toDataURL("image/jpeg", quality); }
           if (base64.length > MAX_IMAGE_BYTES) { displayFeedback("chat-feedback", "Görsel boyutu 1MB sınırını aşıyor!", false); return; }
           displayFeedback("chat-feedback", "", true);
-          // Sent as raw base64 — the server stores it in imgdb and swaps in
-          // an "img:<id>" reference before broadcasting/saving the message.
           sendChatMessagePayload(base64);
           input.value = "";
         };
@@ -841,9 +818,6 @@
       if (!activeGroupToken) return;
       const replyData = activeReplyTarget ? { ...activeReplyTarget } : null;
       cancelReply();
-      // NOTE: we don't optimistically inject here — the server echoes the
-      // saved row back over SSE (with the real id), which is what actually
-      // renders it. Keeps a single source of truth and avoids dupes/races.
       await fetch(`${BACKEND}/api/messages/send`, {
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({
@@ -861,13 +835,12 @@
         body: JSON.stringify({ messageId, groupToken: activeGroupToken })
       });
       if (!res.ok) { const data = await res.json(); alert(data.error || "Mesaj silinemedi"); }
-      // UI update happens via the MESSAGE_DELETED SSE event, not here — no extra request.
     }
 
    function renderUserAvatar(username, pfpUrl, containerId = "user-avatar-container") {
       const container = document.getElementById(containerId);
       container.innerHTML = "";
-      container.style.position = "relative"; // Required so the badge sticks to the corner
+      container.style.position = "relative"; 
       container.style.display = "inline-block";
 
       if (pfpUrl) { 
@@ -878,12 +851,11 @@
         container.appendChild(div); 
       }
       
-      // Add the online badge for yourself
       const statusBadge = document.createElement("div");
       statusBadge.className = "status-badge online";
       statusBadge.style.width = "12px";
       statusBadge.style.height = "12px";
-      statusBadge.style.borderColor = "#0f172a"; // Matches the profile card background
+      statusBadge.style.borderColor = "#0f172a";
       container.appendChild(statusBadge);
     }
 
@@ -904,21 +876,6 @@
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         audio.currentTime = 0; audio.play().catch(() => {});
       }
-    }
-    function applyVolumeLock() {
-      const db = parseFloat(document.getElementById("volume-db-slider").value);
-      localStorage.setItem("sound_db", db);
-      setGain(db);
-      
-      const msgBox = document.getElementById("lock-msg");
-      msgBox.className = "feedback-slot success";
-      msgBox.innerText = "Ses başarıyla uygulandı!";
-      setTimeout(() => msgBox.innerText = "", 3000);
-    }
-    function checkLockStatus() {
-      // Limit removed, inputs are always enabled
-      document.getElementById("volume-db-slider").disabled = false;
-      document.getElementById("apply-vol-btn").disabled = false;
     }
     function previewAudio() {
       initAudio();
@@ -941,7 +898,7 @@
         localStorage.setItem("username", currentUser);
         localStorage.setItem("role", currentRole);
         localStorage.setItem("pfp", currentUserPfp);
-        document.getElementById("password").value = ""; // never leave a password sitting in the DOM
+        document.getElementById("password").value = ""; 
         location.reload();
       } else {
         displayFeedback("auth-feedback", data.error, false);
@@ -967,52 +924,21 @@
       location.reload();
     }
 
+    // ------------------------------------------------------------------
+    // LIVE PRESENCE HANDLER
+    // Selects elements via data attribute and dynamically swaps CSS class
+    // ------------------------------------------------------------------
     function handlePresenceChange(targetUsername, isOnline) {
-      let needsFriendRender = false;
-      let activeGroupNeedsRender = false;
-
-      // 1. Update Friends Cache
-      cachedFriends.forEach(f => {
-        const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
-        if (otherUser === targetUsername) {
-          f.online = isOnline;
-          needsFriendRender = true;
-        }
+      onlineMap[targetUsername] = isOnline;
+      document.querySelectorAll(`.status-badge[data-user="${CSS.escape(targetUsername)}"]`).forEach(badge => {
+        badge.classList.toggle("online", isOnline);
+        badge.classList.toggle("offline", !isOnline);
       });
-
-      if (needsFriendRender) {
-        renderFriends(cachedFriends);
-      }
-
-      // 2. Update Group Members Cache (for all loaded groups)
-      for (const token of Object.keys(groupMembersCache)) {
-        let updatedInGroup = false;
-        groupMembersCache[token].members.forEach(m => {
-          if (m.username === targetUsername) {
-            m.online = isOnline;
-            updatedInGroup = true;
-          }
-        });
-        
-        // Only trigger a UI re-render if the user is in the currently visible group
-        if (updatedInGroup && token === activeGroupToken) {
-          activeGroupNeedsRender = true;
-        }
-      }
-
-      if (activeGroupNeedsRender) {
-        renderGroupMembersFromCache(activeGroupToken);
-      }
     }
 
-    // ------------------------------------------------------------------
-    // STREAM — token is fetched fresh (60s TTL, single-use) right before
-    // opening the connection, so the long-lived session token never
-    // touches a URL / server access log.
-    // ------------------------------------------------------------------
     async function connectStream() {
       const res = await fetch(`${BACKEND}/api/stream/token`, { method: "POST", headers: { Authorization: token } });
-      if (!res.ok) return; // session likely invalid; user stays on login after reload
+      if (!res.ok) return; 
       const { streamToken } = await res.json();
       startStream(streamToken);
     }
@@ -1024,11 +950,27 @@
       eventSource.onmessage = (e) => {
         const data = JSON.parse(e.data);
 
+        // ----------------- I-FRAME SETUP -----------------
         if (data.frameType === "I-FRAME") {
+          onlineMap = {}; // Reset global map on full snapshot
+          
           cachedFriends = data.friends || [];
+          cachedFriends.forEach(f => {
+            const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
+            onlineMap[otherUser] = f.online;
+          });
+
           cachedGroups = data.groups || [];
+          cachedGroups.forEach(g => {
+            if (g.members) {
+              groupMembersCache[g.group_token] = { groupInfo: g, members: g.members };
+              g.members.forEach(m => onlineMap[m.username] = m.online);
+            }
+          });
+
           renderFriends(cachedFriends);
           renderGroups(cachedGroups);
+          
           if (data.user && data.user.pfp) {
             currentUserPfp = data.user.pfp;
             localStorage.setItem("pfp", currentUserPfp);
@@ -1037,7 +979,7 @@
           return;
         }
 
-        // ---- P-FRAME: every branch patches local state, none re-fetch ----
+        // ----------------- P-FRAME PATCHES -----------------
         switch (data.type) {
           case "NEW_MESSAGE": {
             const gt = data.payload.group_token;
@@ -1045,7 +987,7 @@
             
             if (gt === activeGroupToken) {
               const isMyMessage = data.payload.sender === currentUser;
-              renderMessagesFromCache(gt, isMyMessage); // Force scroll if you just sent it
+              renderMessagesFromCache(gt, isMyMessage); 
             } else { 
               unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; renderFriends(cachedFriends); renderGroups(cachedGroups); 
             }
@@ -1066,6 +1008,9 @@
           case "FRIEND_ACCEPTED": {
             const mine = data.payload.friendRowFor[currentUser];
             if (mine) {
+              const otherUser = mine.user1 === currentUser ? mine.user2 : mine.user1;
+              if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; // Safe offline default for new friends
+              
               const idx = cachedFriends.findIndex(f =>
                 (f.user1 === mine.user1 && f.user2 === mine.user2) || (f.user1 === mine.user2 && f.user2 === mine.user1));
               if (idx >= 0) cachedFriends[idx] = mine; else cachedFriends.push(mine);
@@ -1084,6 +1029,9 @@
             renderGroups(cachedGroups);
             if (groupMembersCache[gt]) {
               groupMembersCache[gt].members.push(data.payload.newMember);
+              if (!(data.payload.newMember.username in onlineMap)) {
+                  onlineMap[data.payload.newMember.username] = false; // Safe offline default 
+              }
               if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
             }
             break;
@@ -1120,16 +1068,13 @@
             }
             break;
           }
-          case "USER_ONLINE":
-          case "USER_OFFLINE": {
-            handlePresenceChange(data.payload.username, data.type === "USER_ONLINE");
+          case "PRESENCE_CHANGED": {
+            handlePresenceChange(data.payload.username, data.payload.online);
             break;
           }
         }
       };
 
-      // token expired mid-session or connection dropped — silently get a fresh
-      // short-lived token and reconnect instead of falling back to polling.
       eventSource.onerror = () => {
         eventSource.close();
         setTimeout(connectStream, 3000);
@@ -1157,15 +1102,15 @@
           left.style.cssText = "display:flex; align-items:center; gap:10px;";
           
           const avatarWrap = document.createElement("div");
-          // Notice position: relative; is added here
           avatarWrap.style.cssText = "width:28px;height:28px; position:relative;"; 
           
           if (f.pfp) { const img = document.createElement("img"); img.src = f.pfp; img.className = "avatar-img"; img.style.cssText = "width:28px;height:28px;"; avatarWrap.appendChild(img); }
           else { const div = document.createElement("div"); div.className = "avatar-img"; div.style.cssText = "width:28px;height:28px;font-size:11px;"; div.innerText = otherUser[0].toUpperCase(); avatarWrap.appendChild(div); }
           
-          // Add the status badge
+          // Add the status badge + data-user target attribute
           const statusBadge = document.createElement("div");
-          statusBadge.className = `status-badge ${f.online ? 'online' : 'offline'}`;
+          statusBadge.className = `status-badge ${onlineMap[otherUser] ? 'online' : 'offline'}`;
+          statusBadge.setAttribute("data-user", otherUser);
           statusBadge.style.width = "9px";
           statusBadge.style.height = "9px";
           avatarWrap.appendChild(statusBadge);
@@ -1201,7 +1146,7 @@
         item.setAttribute("data-token", g.group_token);
 
         const nameSpan = document.createElement("span");
-        nameSpan.innerText = `# ${g.group_name}`; // textContent-equivalent — safe against XSS via group name
+        nameSpan.innerText = `# ${g.group_name}`; 
         item.appendChild(nameSpan);
         if (unread > 0) { const badge = document.createElement("span"); badge.className = "unread-badge"; badge.innerText = `[${unread}]`; item.appendChild(badge); }
 
@@ -1210,7 +1155,6 @@
       });
     }
 
-    // ---------------- Group members (cached, patched via SSE) ----------------
     async function loadGroupMembers(groupToken) {
       if (groupMembersCache[groupToken]) { renderGroupMembersFromCache(groupToken); return; }
       const container = document.getElementById("members-list-container");
@@ -1222,6 +1166,14 @@
 
       const data = await res.json();
       if (groupToken !== activeGroupToken) return;
+
+      // Update online map from fetched members just in case
+      if (data.members) {
+        data.members.forEach(m => {
+           if (!(m.username in onlineMap)) onlineMap[m.username] = m.online;
+        });
+      }
+
       groupMembersCache[groupToken] = data;
       renderGroupMembersFromCache(groupToken);
     }
@@ -1264,10 +1216,8 @@
         left.style.cssText = "display:flex; align-items:center; gap:8px;";
         
         const avatarWrap = document.createElement("div");
-        // Added position: relative; so the badge sticks to the corner
         avatarWrap.style.cssText = "width:24px;height:24px; position:relative;"; 
         
-        // 1. Attach Profile Picture or Initials
         if (m.pfp) { 
           const img = document.createElement("img"); 
           img.src = m.pfp; 
@@ -1282,15 +1232,17 @@
           avatarWrap.appendChild(div); 
         }
         
-        // 2. Attach the Online/Offline Status Badge
+        // Setup Live Online Indicator 
         const statusBadge = document.createElement("div");
-        statusBadge.className = `status-badge ${m.online ? 'online' : 'offline'}`;
+        const isOnline = m.username === currentUser ? true : !!onlineMap[m.username];
+        statusBadge.className = `status-badge ${isOnline ? 'online' : 'offline'}`;
+        if (m.username !== currentUser) statusBadge.setAttribute("data-user", m.username);
+        
         statusBadge.style.width = "7px";
         statusBadge.style.height = "7px";
         statusBadge.style.borderWidth = "1.5px"; 
         avatarWrap.appendChild(statusBadge);
 
-        // 3. Attach Username and Founder Badge
         const nameSpan = document.createElement("span"); 
         nameSpan.style.cssText = "font-size: 12px; font-weight: 500;";
         nameSpan.innerText = `@${m.username}` + (isMemberOwner ? " " : "");
@@ -1306,7 +1258,6 @@
         left.appendChild(nameSpan);
         item.appendChild(left);
 
-        // 4. Attach Admin Action Buttons (Kick / Invite Perms)
         if (isOwner && !isMemberOwner) {
           const actions = document.createElement("div"); 
           actions.style.cssText = "display:flex; gap:4px;";
@@ -1339,7 +1290,6 @@
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ groupToken: activeGroupToken, allowSubInvites })
       });
-      // server broadcasts GROUP_SETTING_UPDATED to everyone incl. us — no local patch needed here
     }
 
     async function toggleMemberInvitePerm(targetUsername, canAddMembers) {
@@ -1358,7 +1308,6 @@
       });
     }
 
-    // ---------------- Messages: paginated load + infinite scroll-back ----------------
     async function loadMessages(groupToken) {
       if (chatMessagesCache[groupToken]) { renderMessagesFromCache(groupToken, true); touchCacheOrder(groupToken); return; }
 
@@ -1392,7 +1341,6 @@
       cache.messages = [...older, ...cache.messages];
       cache.hasMore = older.length === 50;
       renderMessagesFromCache(groupToken);
-      // preserve scroll position instead of jumping to top
       container.scrollTop = container.scrollHeight - prevScrollHeight;
     }
 
@@ -1412,7 +1360,6 @@
       const cache = chatMessagesCache[groupToken];
       const msgs = cache ? cache.messages : [];
       
-      // Auto-scroll if forced (like initial load or you just sent a message), OR if already near bottom (Threshold expanded to 800px)
       const wasNearBottom = forceScrollToBottom || (container.scrollHeight - container.scrollTop - container.clientHeight < 800);
 
       container.innerHTML = "";
@@ -1451,11 +1398,9 @@
           senderHeader.appendChild(avatarWrap); 
           senderHeader.appendChild(nameSpan);
           
-          // Find the creator of this specific group
           const groupObj = cachedGroups.find(g => g.group_token === groupToken);
           const creator = groupObj ? groupObj.created_by : null;
           
-          // Attach badge if sender is the creator OR is "totally"
           if (group.sender === creator || group.sender === "totally" || group.sender === "mehmetfezup") {
             const badge = document.createElement("span");
             badge.className = "badge-owner";
@@ -1513,12 +1458,9 @@
             const dlBtn = document.createElement("button");
             dlBtn.className = "chat-img-download-btn"; dlBtn.title = "Görseli İndir"; dlBtn.innerText = "⬇";
 
-            // Resolve async — "data:image/..." resolves instantly, "img:<id>"
-            // fetches once and is cached for the rest of the session.
             resolveImageContent(msg.content).then(src => {
               if (!src) return;
               imgEl.src = src;
-              // Ensure we stay scrolled to bottom after an async image expands the chat
               imgEl.onload = () => { if (wasNearBottom) container.scrollTop = container.scrollHeight; };
               imgEl.onclick = () => openImageInspector(src);
               dlBtn.onclick = (e) => { e.stopPropagation(); downloadImage(src, `gorsel_${msg.created_at}.jpg`); };
@@ -1576,7 +1518,7 @@
 
       const headerActions = document.getElementById("header-actions");
       headerActions.innerHTML = "";
-      toggleMobileMembersSidebar(false); // collapse any previously-open members panel when switching chats
+      toggleMobileMembersSidebar(false);
       const membersToggleBtn = document.getElementById("mobile-members-toggle-btn");
       if (!name.startsWith("@")) {
         const btn = document.createElement("button");
@@ -1590,7 +1532,7 @@
         const targetFriend = name.replace("@", "");
         const btn = document.createElement("button");
         btn.style.cssText = "background:var(--danger); font-size:12px; padding:6px 12px;";
-        btn.innerText = `Arkadaşlıktan Çıkar`; // <-- UI text fix here
+        btn.innerText = `Arkadaşlıktan Çıkar`; 
         btn.onclick = () => unfriendUser(targetFriend);
         headerActions.appendChild(btn);
         document.getElementById("right-members-sidebar").classList.add("hidden");
@@ -1629,7 +1571,6 @@
         method: "POST", headers: { "Content-Type": "application/json", "Authorization": token },
         body: JSON.stringify({ targetUsername: target })
       });
-      // FRIEND_ACCEPTED SSE event updates the cache for both sides
     }
 
     async function unfriendUser(target) {
@@ -1649,7 +1590,6 @@
       
       if (!res.ok) { 
         const data = await res.json(); 
-        // Suppressing the alert popup as requested. Logging to console instead just in case.
         console.warn("Backend rejected leave request:", data.error); 
       }
     }
@@ -1692,7 +1632,7 @@
       });
       const data = await res.json();
       displayFeedback("add-member-feedback", data.message || data.error, res.ok);
-      if (res.ok) populateScrollableFriendsModal(); // GROUP_MEMBER_ADDED SSE event patches the real cache
+      if (res.ok) populateScrollableFriendsModal(); 
     }
 
     function toggleSettings(show) {
@@ -1741,7 +1681,7 @@
       
       const images = ["1.png", "2.png", "3.png"];
       const particles = [];
-      const numParticles = 30; // "Wave"
+      const numParticles = 30; 
       
       for (let i = 0; i < numParticles; i++) {
         const img = document.createElement("img");
@@ -1785,7 +1725,6 @@
       const content = input.value;
       input.value = "";
 
-      // Check for easter egg before sending
       const easterEggRegex = /(turkey|turkiye|türkiye|kktc|kuzey\s*kibris|kuzey\s*kıbrıs)/i;
       if (easterEggRegex.test(content)) {
         triggerEasterEgg();
