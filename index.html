@@ -24,7 +24,7 @@
     body { background: var(--bg-main); color: var(--text-bright); height: 100vh; height: 100dvh; overflow: hidden; }
     .hidden { display: none !important; }
     img { -webkit-user-drag: none; user-drag: none; }
-    #app-container { display: flex; width: 100vw; height: 100vh; height: 100dvh; position: relative; }
+    #app-container, #superadmin-container { display: flex; width: 100vw; height: 100vh; height: 100dvh; position: relative; }
     .sidebar { width: 280px; background: var(--bg-sidebar); border-right: 1px solid #334155; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 50; }
     .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; display: none; }
     .user-profile-card { padding: 16px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
@@ -150,12 +150,10 @@
         } else if (pingRes.status !== 200) {
           window.triggerMaintenanceScreen();
         } else {
-          // Just in case 999 is returned in the text body
           const text = await pingRes.text().catch(() => "");
           if (text.includes("999")) window.triggerMaintenanceScreen();
         }
       } catch (e) {
-        // Network error / server down
         window.triggerMaintenanceScreen();
       }
     })();
@@ -213,6 +211,34 @@
         <button onclick="switchAuthSubpage('login')" style="width: 100%; margin-top: 4px;">Geri Dön</button>
       </div>
       <div id="auth-feedback" class="feedback-slot"></div>
+    </div>
+  </div>
+
+  <div id="superadmin-container" class="hidden">
+    <div class="sidebar">
+      <div class="user-profile-card">
+        <div class="avatar-img">SA</div>
+        <div style="flex:1;">
+          <div style="font-weight: bold;">__admin__</div>
+          <div style="font-size: 11px; color: var(--accent-hover);">Superadmin Gözetim Paneli</div>
+        </div>
+        <button onclick="logout()" class="danger" style="padding: 6px 10px; font-size: 11px;">Çıkış</button>
+      </div>
+      <div class="category-header"><span>Özel Sohbetler (DM)</span></div>
+      <div class="list-container" id="admin-dms-list"></div>
+      <div class="category-header"><span>Gruplar</span></div>
+      <div class="list-container" id="admin-groups-list"></div>
+    </div>
+
+    <div class="workspace">
+      <div class="header-bar">
+        <h3 id="admin-active-title">Konuşma Seçilmedi</h3>
+      </div>
+      <div class="chat-layout-wrapper">
+        <div id="admin-messages-panel" class="content-panel">
+          <div class="loading-display">Lütfen sol menüden denetlemek için bir konuşma seçin.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -456,13 +482,11 @@
       if (isLoggingOut) return;
       isLoggingOut = true;
       
-      // Stop WebSockets and Events
       if (ws) { ws.close(); ws = null; }
       if (eventSource) { eventSource.close(); eventSource = null; }
       
       localStorage.clear();
       
-      // Instant visual feedback for the user
       document.body.innerHTML = `
         <div style="background-color: var(--bg-main, #0f172a); color: var(--danger, #ef4444); height: 100vh; width: 100vw; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; box-sizing: border-box;">
           <h2 style="margin-bottom: 10px; font-size: 32px;">HATA 998</h2>
@@ -491,9 +515,8 @@
     let eventSource = null;
     let audioCtx, gainNode;
 
-    // TYPING STATE
-    let typingState = {}; // groupToken -> { timer, isTyping }
-    const currentTypers = new Set(); // usernames currently typing in active group
+    let typingState = {}; 
+    const currentTypers = new Set(); 
 
     let imageCache = {};
     function isImageRef(content) {
@@ -1080,7 +1103,14 @@
         localStorage.setItem("role", currentRole);
         localStorage.setItem("pfp", currentUserPfp);
         document.getElementById("password").value = ""; 
-        location.reload();
+        
+        if (currentRole === "superadmin" || currentUser === "__admin__") {
+          document.getElementById("auth-view").classList.add("hidden");
+          document.getElementById("superadmin-container").classList.remove("hidden");
+          initSuperadminDashboard();
+        } else {
+          location.reload();
+        }
       } else {
         displayFeedback("auth-feedback", data.error, false);
       }
@@ -1105,6 +1135,142 @@
       localStorage.clear();
       location.reload();
     }
+
+    // ------------------------------------------------------------------
+    // SUPERADMIN DASHBOARD LOGIC
+    // ------------------------------------------------------------------
+    async function initSuperadminDashboard() {
+      try {
+        const res = await fetch(`${BACKEND}/api/oversight/conversations`, {
+          headers: { "Authorization": token }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        renderAdminConversations(data.dms || [], data.groups || []);
+      } catch (err) {
+        console.error("Superadmin verileri alınamadı:", err);
+      }
+    }
+
+    function renderAdminConversations(dms, groups) {
+      const dmList = document.getElementById("admin-dms-list");
+      const groupList = document.getElementById("admin-groups-list");
+      dmList.innerHTML = "";
+      groupList.innerHTML = "";
+
+      dms.forEach(dm => {
+        const item = document.createElement("div");
+        item.className = "list-item";
+        item.innerText = `@${dm.display}`;
+        item.onclick = () => selectAdminConversation(dm.groupToken, `@${dm.display}`, item);
+        dmList.appendChild(item);
+      });
+
+      groups.forEach(g => {
+        const item = document.createElement("div");
+        item.className = "list-item";
+        item.innerText = `# ${g.display} (${g.createdBy})`;
+        item.onclick = () => selectAdminConversation(g.groupToken, `# ${g.display}`, item);
+        groupList.appendChild(item);
+      });
+    }
+
+    async function selectAdminConversation(groupToken, title, el) {
+      document.querySelectorAll("#superadmin-container .list-item").forEach(node => node.classList.remove("active"));
+      if (el) el.classList.add("active");
+      
+      document.getElementById("admin-active-title").innerText = title;
+      const panel = document.getElementById("admin-messages-panel");
+      panel.innerHTML = `<div class="loading-display">MESAJLAR YÜKLENİYOR...</div>`;
+
+      try {
+        const res = await fetch(`${BACKEND}/api/oversight/messages/${groupToken}`, {
+          headers: { "Authorization": token }
+        });
+        if (!res.ok) {
+          panel.innerHTML = `<div class="loading-display" style="color:var(--danger)">Mesajlar yüklenemedi.</div>`;
+          return;
+        }
+        const messages = await res.json();
+        renderAdminMessages(messages, panel);
+      } catch (err) {
+        panel.innerHTML = `<div class="loading-display" style="color:var(--danger)">Bir hata oluştu.</div>`;
+      }
+    }
+
+    async function renderAdminMessages(messages, container) {
+      container.innerHTML = "";
+      if (!messages || messages.length === 0) {
+        container.innerHTML = `<div class="loading-display">Bu konuşmada henüz mesaj yok.</div>`;
+        return;
+      }
+
+      for (const msg of messages) {
+        const row = document.createElement("div");
+        row.className = "message-group-row other";
+
+        const senderHeader = document.createElement("div");
+        senderHeader.className = "message-sender-header";
+        
+        const avatarWrap = document.createElement("div");
+        avatarWrap.style.display = "inline-block";
+        if (msg.pfp) { 
+          const img = document.createElement("img"); 
+          img.src = msg.pfp; 
+          img.className = "avatar-img"; 
+          avatarWrap.appendChild(img); 
+        } else { 
+          const div = document.createElement("div"); 
+          div.className = "avatar-img"; 
+          div.innerText = (msg.sender || "U")[0].toUpperCase(); 
+          avatarWrap.appendChild(div); 
+        }
+        
+        const nameSpan = document.createElement("span"); 
+        nameSpan.innerText = msg.sender;
+        senderHeader.appendChild(avatarWrap); 
+        senderHeader.appendChild(nameSpan);
+        row.appendChild(senderHeader);
+
+        const bubbleWrapper = document.createElement("div");
+        bubbleWrapper.className = "sms-bubble-wrapper";
+        
+        const bubble = document.createElement("div");
+        bubble.className = "sms-bubble";
+
+        if (msg.content && msg.content.startsWith("img:")) {
+          const imgWrap = document.createElement("div"); 
+          imgWrap.className = "chat-img-wrapper";
+          const imgEl = document.createElement("img");
+          imgEl.className = "chat-img-attachment"; 
+          imgEl.alt = "Görsel yükleniyor...";
+          
+          resolveImageContent(msg.content).then(src => {
+            if (src) imgEl.src = src;
+          });
+          imgWrap.appendChild(imgEl);
+          bubble.appendChild(imgWrap);
+        } else {
+          const textSpan = document.createElement("span");
+          textSpan.innerHTML = msg.content || "";
+          bubble.appendChild(textSpan);
+        }
+
+        bubbleWrapper.appendChild(bubble);
+        row.appendChild(bubbleWrapper);
+
+        if (msg.created_at) {
+          const timeDiv = document.createElement("div");
+          timeDiv.className = "sms-timestamp";
+          timeDiv.innerText = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          row.appendChild(timeDiv);
+        }
+
+        container.appendChild(row);
+      }
+      container.scrollTop = container.scrollHeight;
+    }
+    // ------------------------------------------------------------------
 
     function handlePresenceChange(targetUsername, isOnline) {
       onlineMap[targetUsername] = isOnline;
@@ -1133,7 +1299,6 @@
       eventSource.onmessage = (e) => {
         const data = JSON.parse(e.data);
 
-        // I-FRAME
         if (data.frameType === "I-FRAME") {
           onlineMap = {}; 
           cachedFriends = data.friends || [];
@@ -1158,7 +1323,6 @@
           return;
         }
 
-        // P-FRAME
         switch (data.type) {
           case "NEW_MESSAGE": {
             const gt = data.payload.group_token;
@@ -1927,19 +2091,25 @@
       
       if (token) {
         document.getElementById("auth-view").classList.add("hidden");
-        document.getElementById("app-container").classList.remove("hidden");
-        document.getElementById("user-display-name").innerText = currentUser;
-        document.getElementById("user-role-tag").innerText = currentRole;
-        renderUserAvatar(currentUser, currentUserPfp);
         
-        wsConnect();
-        connectStream();
+        if (currentRole === "superadmin" || currentUser === "__admin__") {
+          document.getElementById("superadmin-container").classList.remove("hidden");
+          initSuperadminDashboard();
+        } else {
+          document.getElementById("app-container").classList.remove("hidden");
+          document.getElementById("user-display-name").innerText = currentUser;
+          document.getElementById("user-role-tag").innerText = currentRole;
+          renderUserAvatar(currentUser, currentUserPfp);
+          
+          wsConnect();
+          connectStream();
 
-        const initAudioOnce = () => { 
-          initAudio(); 
-          document.removeEventListener("click", initAudioOnce); 
-        };
-        document.addEventListener("click", initAudioOnce);
+          const initAudioOnce = () => { 
+            initAudio(); 
+            document.removeEventListener("click", initAudioOnce); 
+          };
+          document.addEventListener("click", initAudioOnce);
+        }
       }
     };
   </script>
