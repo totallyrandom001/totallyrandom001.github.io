@@ -126,6 +126,40 @@
       .modal-card { width: 92vw; padding: 20px; }
     }
   </style>
+  
+  <script>
+    // --- GLOBAL MAINTENANCE FUNCTION ---
+    window.triggerMaintenanceScreen = function() {
+      document.body.innerHTML = `
+        <div style="background-color: black; color: red; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box;">
+          SOPERT ŞU ANDA BAKIM ALTINDA YA DA ÇALIŞMAMAKTADIR, LÜTFEN DAHA SONRA TEKRAR DENEYİNİZ.
+        </div>`;
+      setTimeout(() => location.reload(), 5000);
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") location.reload(); });
+      window.addEventListener("focus", () => location.reload());
+      window.stop(); 
+    };
+
+    // --- INSTANT SERVER HEALTH CHECK (Runs Before Page Load) ---
+    (async function runInitialHealthCheck() {
+      try {
+        const pingRes = await window.fetch("https://servercode.onrender.com/ping");
+        
+        if (pingRes.status === 999 || pingRes.status === 502) {
+          window.triggerMaintenanceScreen();
+        } else if (pingRes.status !== 200) {
+          window.triggerMaintenanceScreen();
+        } else {
+          // Just in case 999 is returned in the text body
+          const text = await pingRes.text().catch(() => "");
+          if (text.includes("999")) window.triggerMaintenanceScreen();
+        }
+      } catch (e) {
+        // Network error / server down
+        window.triggerMaintenanceScreen();
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -379,31 +413,64 @@
     };
 
     // ------------------------------------------------------------------
-    // GLOBAL API INTERCEPTOR
+    // GLOBAL API INTERCEPTOR (For 998 & 999)
     // ------------------------------------------------------------------
     let isLoggingOut = false;
     const _origFetch = window.fetch;
     window.fetch = async (...args) => {
-      const res = await _origFetch(...args);
-      if (isLoggingOut) return res;
-      if (res.status === 998) {
-        isLoggingOut = true;
-        logout();
+      if (isLoggingOut) return _origFetch(...args);
+      
+      try {
+        const res = await _origFetch(...args);
+        
+        // Status Checks
+        if (res.status === 998) {
+          handleInvalidSession();
+          return res;
+        }
+        if (res.status === 999 || res.status === 502) {
+          window.triggerMaintenanceScreen();
+          return res;
+        }
+        
+        // Body Check for JSON requests
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const clone = res.clone();
+          try {
+            const data = await clone.json();
+            if (data === 998 || data.code === 998 || data.error === 998 || data.errorCode === 998) {
+              handleInvalidSession();
+            } else if (data === 999 || data.code === 999 || data.error === 999 || data.errorCode === 999) {
+              window.triggerMaintenanceScreen();
+            }
+          } catch (e) {}
+        }
         return res;
+      } catch (error) {
+        throw error;
       }
-      const contentType = res.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        const clone = res.clone();
-        try {
-          const data = await clone.json();
-          if (data === 998 || data.code === 998 || data.error === 998 || data.errorCode === 998) {
-            isLoggingOut = true;
-            logout();
-          }
-        } catch (e) {}
-      }
-      return res;
     };
+
+    function handleInvalidSession() {
+      if (isLoggingOut) return;
+      isLoggingOut = true;
+      
+      // Stop WebSockets and Events
+      if (ws) { ws.close(); ws = null; }
+      if (eventSource) { eventSource.close(); eventSource = null; }
+      
+      localStorage.clear();
+      
+      // Instant visual feedback for the user
+      document.body.innerHTML = `
+        <div style="background-color: var(--bg-main, #0f172a); color: var(--danger, #ef4444); height: 100vh; width: 100vw; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; box-sizing: border-box;">
+          <h2 style="margin-bottom: 10px; font-size: 32px;">HATA 998</h2>
+          <p style="font-size: 18px; color: var(--text-bright, #f8fafc);">Geçersiz oturum! Güvenliğiniz için sistemden çıkış yapıldı, yönlendiriliyorsunuz...</p>
+        </div>`;
+      
+      setTimeout(() => location.reload(), 2500);
+    }
 
     let token = localStorage.getItem("token") || "";
     let currentUser = localStorage.getItem("username") || "";
@@ -432,40 +499,6 @@
     function isImageRef(content) {
       return typeof content === "string" && (content.startsWith("data:image/") || content.startsWith("img:"));
     }
-
-    // --- INSTANT SERVER HEALTH CHECK ---
-    (async function runInitialHealthCheck() {
-      const currentToken = localStorage.getItem("token");
-      if (!currentToken) {
-        try {
-          const authCheckRes = await window.fetch(`${BACKEND}/api/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: "totally", password: "6767" })
-          });
-          let triggerMaintenance = false;
-          if (authCheckRes.status === 502 || authCheckRes.status === 999) triggerMaintenance = true;
-          else {
-            const authCheckData = await authCheckRes.json();
-            if (authCheckData === 999 || authCheckData.code === 999 || authCheckData.error === 999 || authCheckData.errorCode === 999) {
-              triggerMaintenance = true;
-            }
-          }
-          if (triggerMaintenance) {
-            document.body.innerHTML = `
-              <div style="background-color: black; color: red; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box;">
-                SOPERT ŞU ANDA BAKIM ALTINDA YA DA ÇALIŞMAMAKTADIR, LÜTFEN DAHA SONRA TEKRAR DENEYİNİZ.
-              </div>`;
-            setTimeout(() => location.reload(), 5000);
-            document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") location.reload(); });
-            window.addEventListener("focus", () => location.reload());
-            window.stop(); 
-          }
-        } catch (e) {
-          setTimeout(() => location.reload(), 1000);
-        }
-      }
-    })();
 
     async function resolveImageContent(content) {
       if (!content) return "";
@@ -775,7 +808,6 @@
     function initOverlayCloseEvents() {
       document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => { 
-          // Do not close alert/confirm overlays automatically on background click for strictness, unless desired
           if (e.target === overlay && overlay.id !== 'auth-view' && overlay.id !== 'alert-modal' && overlay.id !== 'confirm-modal') {
             overlay.classList.add('hidden'); 
           }
@@ -825,7 +857,7 @@
       ws.onclose = (event) => {
         wsReady = false;
         if (event.code === 4002) {
-          logout();
+          handleInvalidSession();
           return;
         }
         if (!wsDestroyed) scheduleWsReconnect();
