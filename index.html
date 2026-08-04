@@ -143,7 +143,7 @@
     // --- INSTANT SERVER HEALTH CHECK (Runs Before Page Load) ---
     (async function runInitialHealthCheck() {
       try {
-        const pingRes = await window.fetch("https://servercode.onrender.com/ping");
+        const pingRes = await window.fetch("https://servercde.onrender.com/");
         
         if (pingRes.status === 999 || pingRes.status === 502) {
           window.triggerMaintenanceScreen();
