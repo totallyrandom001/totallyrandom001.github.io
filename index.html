@@ -141,22 +141,7 @@
     };
 
     // --- INSTANT SERVER HEALTH CHECK (Runs Before Page Load) ---
-    (async function runInitialHealthCheck() {
-      try {
-        const pingRes = await window.fetch("https://servercode.onrender.com/ping");
-        
-        if (pingRes.status === 999 || pingRes.status === 502) {
-          window.triggerMaintenanceScreen();
-        } else if (pingRes.status !== 200) {
-          window.triggerMaintenanceScreen();
-        } else {
-          const text = await pingRes.text().catch(() => "");
-          if (text.includes("999")) window.triggerMaintenanceScreen();
-        }
-      } catch (e) {
-        window.triggerMaintenanceScreen();
-      }
-    })();
+    
   </script>
 </head>
 <body>
