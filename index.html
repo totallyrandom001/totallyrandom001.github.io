@@ -942,13 +942,28 @@
             g.members.forEach(m => onlineMap[m.username] = m.online);
           }
         });
+        
         renderFriends(cachedFriends);
         renderGroups(cachedGroups);
+        
         if (frame.user && frame.user.pfp) {
           currentUserPfp = frame.user.pfp;
           localStorage.setItem("pfp", currentUserPfp);
           renderUserAvatar(currentUser, currentUserPfp);
         }
+
+        // --- FIX: REFRESH DM SUBTITLE ON RECONNECT ---
+        const dmSub = document.getElementById("active-subtitle");
+        if (dmSub && !dmSub.classList.contains("hidden")) {
+          const currentDmUser = dmSub.getAttribute("data-dm-user");
+          if (currentDmUser) {
+            const isOnline = !!onlineMap[currentDmUser];
+            dmSub.innerText = isOnline ? "Çevrimiçi" : "Çevrimdışı";
+            dmSub.style.color = isOnline ? "var(--success)" : "var(--text-muted)";
+          }
+        }
+        // ---------------------------------------------
+        
         return;
       }
 
