@@ -116,7 +116,8 @@
       .sidebar { position: fixed; top: 0; bottom: 0; left: 0; transform: translateX(-100%); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
       .sidebar.mobile-open { transform: translateX(0); }
       .sidebar-overlay.mobile-open { display: block; }
-      .right-sidebar { position: fixed; top: 60px; bottom: 0; right: 0; z-index: 30; box-shadow: -5px 0 15px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform 0.3s ease; }
+      /* Fixed z-index from 30 to 50 below */
+      .right-sidebar { position: fixed; top: 60px; bottom: 0; right: 0; z-index: 50; box-shadow: -5px 0 15px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform 0.3s ease; }
       .right-sidebar.mobile-open { transform: translateX(0); }
       .mobile-members-toggle { display: inline-flex; }
       .sms-bubble-wrapper { max-width: 88%; }
@@ -257,7 +258,6 @@
       <div class="list-container-sub" id="friends-sidebar-list">
         <div class="loading-display-small">YÜKLENİYOR...</div>
       </div>
-      
       <div class="category-header">
         <span>Gruplar</span>
         <button class="add-btn-icon" title="Grup Oluştur" onclick="toggleCreateGroupModal(true)">+</button>
@@ -265,7 +265,6 @@
       <div class="list-container" id="groups-sidebar-list">
         <div class="loading-display-small">YÜKLENİYOR...</div>
       </div>
-      <div class="list-container" id="groups-sidebar-list"></div>
     </div>
 
     <div class="workspace">
@@ -489,7 +488,8 @@
       isLoggingOut = true;
       
       if (ws) { ws.close(); ws = null; }
-      if (eventSource) { eventSource.close(); eventSource = null; }
+      clearTimeout(wsReconnTimer);
+      clearTimeout(wsWatchdog);
       
       localStorage.clear();
       
@@ -518,7 +518,6 @@
     let cachedGroups = [];
     let unreadCounts = {};
     let activeReplyTarget = null;
-    let eventSource = null;
     let audioCtx, gainNode;
 
     let typingState = {}; 
@@ -853,44 +852,70 @@
     }
 
     // ------------------------------------------------------------------
-    // WEBSOCKET CLIENT STREAM (Presence & Typing)
+    // WEBSOCKET CLIENT STREAM (Unified connection for all events)
     // ------------------------------------------------------------------
     let ws = null;
-    let wsReady = false; 
-    let wsBackoff = 1000;
+    let wsReconnectDelay = 1000;
+    const WS_WATCHDOG_MS = 30000;
+    let wsWatchdog = null;
     let wsReconnTimer = null;
     let wsDestroyed = false; 
     let intendedOnline = true;
 
-    function wsConnect() {
+    function resetWatchdog() {
+      clearTimeout(wsWatchdog);
+      wsWatchdog = setTimeout(() => {
+        console.warn("WS watchdog fired — stale connection, reconnecting");
+        if (ws) ws.close();
+        scheduleReconnect();
+      }, WS_WATCHDOG_MS);
+    }
+
+    function connectWS() {
       if (wsDestroyed) return;
-      ws = new WebSocket(`${WS_BACKEND}/api/client-stream`);
-      
+      if (ws) ws.close();
+      ws = new WebSocket(`${WS_BACKEND}/api/stream`);
+
       ws.onopen = () => {
-        wsSend({
+        ws.send(JSON.stringify({
           frameType: "I-FRAME",
           token: localStorage.getItem("token"),
           state: { presence: intendedOnline ? "online" : "offline" }
-        });
+        }));
+        resetWatchdog();
       };
 
       ws.onmessage = (event) => {
+        resetWatchdog();
         let frame;
         try { frame = JSON.parse(event.data); } catch { return; }
-        if (frame.frameType === "I-FRAME-ACK" && frame.ok) {
-          wsReady = true;
-          wsBackoff = 1000;
-        }
+        handleFrame(frame);
       };
 
       ws.onclose = (event) => {
-        wsReady = false;
-        if (event.code === 4002) {
+        clearTimeout(wsWatchdog);
+        if (event.code === 4002 || event.code === 4001) {
           handleInvalidSession();
           return;
         }
-        if (!wsDestroyed) scheduleWsReconnect();
+        if (!wsDestroyed) scheduleReconnect();
       };
+
+      ws.onerror = () => {
+        if (ws) ws.close();
+      };
+    }
+
+    function scheduleReconnect() {
+      clearTimeout(wsReconnTimer);
+      wsReconnTimer = setTimeout(() => {
+        wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
+        connectWS();
+      }, wsReconnectDelay);
+    }
+
+    function onWSConnected() {
+      wsReconnectDelay = 1000;
     }
 
     function wsSend(frame) {
@@ -901,23 +926,171 @@
       return false;
     }
 
-    function scheduleWsReconnect() {
-      clearTimeout(wsReconnTimer);
-      wsReconnTimer = setTimeout(() => {
-        wsBackoff = Math.min(wsBackoff * 2, 30000);
-        wsConnect();
-      }, wsBackoff);
+    function handleFrame(frame) {
+      if (frame.frameType === "I-FRAME") {
+        onWSConnected();
+        onlineMap = {}; 
+        cachedFriends = frame.friends || [];
+        cachedFriends.forEach(f => {
+          const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
+          onlineMap[otherUser] = f.online;
+        });
+        cachedGroups = frame.groups || [];
+        cachedGroups.forEach(g => {
+          if (g.members) {
+            groupMembersCache[g.group_token] = { groupInfo: g, members: g.members };
+            g.members.forEach(m => onlineMap[m.username] = m.online);
+          }
+        });
+        renderFriends(cachedFriends);
+        renderGroups(cachedGroups);
+        if (frame.user && frame.user.pfp) {
+          currentUserPfp = frame.user.pfp;
+          localStorage.setItem("pfp", currentUserPfp);
+          renderUserAvatar(currentUser, currentUserPfp);
+        }
+        return;
+      }
+
+      if (frame.frameType === "P-FRAME") {
+        switch (frame.type) {
+          case "NEW_MESSAGE": {
+            const gt = frame.payload.group_token;
+            if (chatMessagesCache[gt]) { chatMessagesCache[gt].messages.push(frame.payload); touchCacheOrder(gt); }
+            
+            let isDifferentChat = false;
+            if (gt === activeGroupToken) {
+              const isMyMessage = frame.payload.sender === currentUser;
+              renderMessagesFromCache(gt, isMyMessage); 
+            } else { 
+              isDifferentChat = true; // Flag that this is a background chat
+              unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; 
+              renderFriends(cachedFriends); 
+              renderGroups(cachedGroups); 
+            }
+
+            // Play sound if someone else sent it. 
+            // Pass 'isDifferentChat' so it plays even if you are focused on the page!
+            if (frame.payload.sender !== currentUser) {
+              playNotification(isDifferentChat);
+            }
+            break;
+          }
+          case "MESSAGE_DELETED": {
+            const gt = frame.payload.groupToken;
+            if (chatMessagesCache[gt]) chatMessagesCache[gt].messages = chatMessagesCache[gt].messages.filter(m => m.id !== frame.payload.messageId);
+            if (gt === activeGroupToken) renderMessagesFromCache(gt);
+            break;
+          }
+          case "FRIEND_REQUEST": {
+            cachedFriends.push({ user1: frame.payload.from, user2: currentUser, status: "pending" });
+            renderFriends(cachedFriends);
+            break;
+          }
+          case "FRIEND_ACCEPTED": {
+            const mine = frame.payload.friendRowFor[currentUser];
+            if (mine) {
+              const otherUser = mine.user1 === currentUser ? mine.user2 : mine.user1;
+              if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; 
+              const idx = cachedFriends.findIndex(f =>
+                (f.user1 === mine.user1 && f.user2 === mine.user2) || (f.user1 === mine.user2 && f.user2 === mine.user1));
+              if (idx >= 0) cachedFriends[idx] = mine; else cachedFriends.push(mine);
+              renderFriends(cachedFriends);
+            }
+            break;
+          }
+          case "FRIEND_REMOVED": {
+            cachedFriends = cachedFriends.filter(f => !(f.user1 === frame.payload.user1 && f.user2 === frame.payload.user2));
+            renderFriends(cachedFriends);
+            break;
+          }
+          case "GROUP_MEMBER_ADDED": {
+            const gt = frame.payload.groupToken;
+            if (!cachedGroups.find(g => g.group_token === gt)) cachedGroups.push(frame.payload.group);
+            renderGroups(cachedGroups);
+            if (groupMembersCache[gt]) {
+              groupMembersCache[gt].members.push(frame.payload.newMember);
+              if (!(frame.payload.newMember.username in onlineMap)) onlineMap[frame.payload.newMember.username] = false; 
+              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+            }
+            break;
+          }
+          case "GROUP_MEMBER_LEFT": {
+            const gt = frame.payload.groupToken;
+            if (frame.payload.username === currentUser) {
+              cachedGroups = cachedGroups.filter(g => g.group_token !== gt);
+              delete chatMessagesCache[gt]; delete groupMembersCache[gt];
+              if (activeGroupToken === gt) showAddFriendsView();
+              renderGroups(cachedGroups);
+            } else if (groupMembersCache[gt]) {
+              groupMembersCache[gt].members = groupMembersCache[gt].members.filter(m => m.username !== frame.payload.username);
+              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+            }
+            break;
+          }
+          case "GROUP_SETTING_UPDATED": {
+            const gt = frame.payload.groupToken;
+            if (groupMembersCache[gt]) {
+              groupMembersCache[gt].groupInfo.allow_sub_invites = frame.payload.allow_sub_invites;
+              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+            }
+            const g = cachedGroups.find(g => g.group_token === gt);
+            if (g) g.allow_sub_invites = frame.payload.allow_sub_invites;
+            break;
+          }
+          case "GROUP_PERM_UPDATED": {
+            const gt = frame.payload.groupToken;
+            if (groupMembersCache[gt]) {
+              const m = groupMembersCache[gt].members.find(m => m.username === frame.payload.username);
+              if (m) m.can_add_members = frame.payload.can_add_members;
+              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+            }
+            break;
+          }
+          case "PRESENCE_CHANGED": {
+            handlePresenceChange(frame.payload.username, frame.payload.online);
+            break;
+          }
+          case "TYPING": {
+            const { groupToken, username, isTyping } = frame.payload;
+            if (groupToken !== activeGroupToken) break; 
+            if (username === currentUser) break; 
+            
+            const typingTimers = window._remoteTypingTimers || (window._remoteTypingTimers = {});
+            
+            if (isTyping) {
+              currentTypers.add(username);
+              clearTimeout(typingTimers[username]);
+              typingTimers[username] = setTimeout(() => {
+                currentTypers.delete(username);
+                renderTypingUI();
+              }, 7000);
+            } else {
+              currentTypers.delete(username);
+              clearTimeout(typingTimers[username]);
+            }
+            renderTypingUI();
+            break;
+          }
+        }
+        return;
+      }
+
+      if (frame.frameType === "ERROR") {
+        console.error("Server error frame", frame.code);
+        if (frame.code === 998) handleInvalidSession();
+      }
     }
 
     function teardown() {
       wsDestroyed = true;
       clearTimeout(wsReconnTimer);
+      clearTimeout(wsWatchdog);
       if (ws) {
         wsSend({ frameType: "P-FRAME", type: "PRESENCE", payload: { online: false } });
         ws.close(1000, "logout");
         ws = null;
       }
-      wsReady = false;
     }
 
     function setPresence(online) {
@@ -1080,14 +1253,15 @@
       setGain(parseFloat(localStorage.getItem("sound_db") || "0"));
     }
     function setGain(db) { if (gainNode) gainNode.gain.setValueAtTime(Math.pow(10, db / 20), audioCtx.currentTime); }
+    
     function playNotification(forcePlay = false) {
-      // Play if the window is in the background, OR if we explicitly force it (e.g., different chat)
       if (!document.hasFocus() || forcePlay) {
         const audio = document.getElementById("notify-audio");
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         audio.currentTime = 0; audio.play().catch(() => {});
       }
     }
+    
     function previewAudio() {
       initAudio();
       setGain(parseFloat(document.getElementById("volume-db-slider").value));
@@ -1138,7 +1312,6 @@
     async function logout() {
       try { await fetch(`${BACKEND}/api/logout`, { method: "POST", headers: { Authorization: token } }); } catch (e) {}
       teardown();
-      if (eventSource) { eventSource.close(); eventSource = null; }
       localStorage.clear();
       location.reload();
     }
@@ -1292,177 +1465,6 @@
       }
     }
 
-    async function connectStream() {
-      const res = await fetch(`${BACKEND}/api/stream/token`, { method: "POST", headers: { Authorization: token } });
-      if (!res.ok) return; 
-      const { streamToken } = await res.json();
-      startStream(streamToken);
-    }
-
-    function startStream(streamToken) {
-  if (eventSource) eventSource.close();
-  eventSource = new EventSource(`${BACKEND}/api/stream?token=${streamToken}`);
-
-  eventSource.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-
-    if (data.frameType === "ERROR" && data.code === "CONNECTION_TIMEOUT") {
-      eventSource.close();
-      connectStream();
-      return;
-    }
-
-    if (data.frameType === "I-FRAME") {
-      onlineMap = {}; 
-      cachedFriends = data.friends || [];
-      cachedFriends.forEach(f => {
-        const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
-        onlineMap[otherUser] = f.online;
-      });
-      cachedGroups = data.groups || [];
-      cachedGroups.forEach(g => {
-        if (g.members) {
-          groupMembersCache[g.group_token] = { groupInfo: g, members: g.members };
-          g.members.forEach(m => onlineMap[m.username] = m.online);
-        }
-      });
-      renderFriends(cachedFriends);
-      renderGroups(cachedGroups);
-      if (data.user && data.user.pfp) {
-        currentUserPfp = data.user.pfp;
-        localStorage.setItem("pfp", currentUserPfp);
-        renderUserAvatar(currentUser, currentUserPfp);
-      }
-      return;
-    }
-
-    switch (data.type) {
-      case "NEW_MESSAGE": {
-        const gt = data.payload.group_token;
-        if (chatMessagesCache[gt]) { chatMessagesCache[gt].messages.push(data.payload); touchCacheOrder(gt); }
-        
-        let isDifferentChat = false;
-
-        if (gt === activeGroupToken) {
-          const isMyMessage = data.payload.sender === currentUser;
-          renderMessagesFromCache(gt, isMyMessage); 
-        } else { 
-          isDifferentChat = true;
-          unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; 
-          renderFriends(cachedFriends); 
-          renderGroups(cachedGroups); 
-        }
-
-        if (data.payload.sender !== currentUser) {
-          playNotification(isDifferentChat);
-        }
-        break;
-      }
-      case "MESSAGE_DELETED": {
-        const gt = data.payload.groupToken;
-        if (chatMessagesCache[gt]) chatMessagesCache[gt].messages = chatMessagesCache[gt].messages.filter(m => m.id !== data.payload.messageId);
-        if (gt === activeGroupToken) renderMessagesFromCache(gt);
-        break;
-      }
-      case "FRIEND_REQUEST": {
-        cachedFriends.push({ user1: data.payload.from, user2: currentUser, status: "pending" });
-        renderFriends(cachedFriends);
-        break;
-      }
-      case "FRIEND_ACCEPTED": {
-        const mine = data.payload.friendRowFor[currentUser];
-        if (mine) {
-          const otherUser = mine.user1 === currentUser ? mine.user2 : mine.user1;
-          if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; 
-          const idx = cachedFriends.findIndex(f =>
-            (f.user1 === mine.user1 && f.user2 === mine.user2) || (f.user1 === mine.user2 && f.user2 === mine.user1));
-          if (idx >= 0) cachedFriends[idx] = mine; else cachedFriends.push(mine);
-          renderFriends(cachedFriends);
-        }
-        break;
-      }
-      case "FRIEND_REMOVED": {
-        cachedFriends = cachedFriends.filter(f => !(f.user1 === data.payload.user1 && f.user2 === data.payload.user2));
-        renderFriends(cachedFriends);
-        break;
-      }
-      case "GROUP_MEMBER_ADDED": {
-        const gt = data.payload.groupToken;
-        if (!cachedGroups.find(g => g.group_token === gt)) cachedGroups.push(data.payload.group);
-        renderGroups(cachedGroups);
-        if (groupMembersCache[gt]) {
-          groupMembersCache[gt].members.push(data.payload.newMember);
-          if (!(data.payload.newMember.username in onlineMap)) onlineMap[data.payload.newMember.username] = false; 
-          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-        }
-        break;
-      }
-      case "GROUP_MEMBER_LEFT": {
-        const gt = data.payload.groupToken;
-        if (data.payload.username === currentUser) {
-          cachedGroups = cachedGroups.filter(g => g.group_token !== gt);
-          delete chatMessagesCache[gt]; delete groupMembersCache[gt];
-          if (activeGroupToken === gt) showAddFriendsView();
-          renderGroups(cachedGroups);
-        } else if (groupMembersCache[gt]) {
-          groupMembersCache[gt].members = groupMembersCache[gt].members.filter(m => m.username !== data.payload.username);
-          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-        }
-        break;
-      }
-      case "GROUP_SETTING_UPDATED": {
-        const gt = data.payload.groupToken;
-        if (groupMembersCache[gt]) {
-          groupMembersCache[gt].groupInfo.allow_sub_invites = data.payload.allow_sub_invites;
-          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-        }
-        const g = cachedGroups.find(g => g.group_token === gt);
-        if (g) g.allow_sub_invites = data.payload.allow_sub_invites;
-        break;
-      }
-      case "GROUP_PERM_UPDATED": {
-        const gt = data.payload.groupToken;
-        if (groupMembersCache[gt]) {
-          const m = groupMembersCache[gt].members.find(m => m.username === data.payload.username);
-          if (m) m.can_add_members = data.payload.can_add_members;
-          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-        }
-        break;
-      }
-      case "PRESENCE_CHANGED": {
-        handlePresenceChange(data.payload.username, data.payload.online);
-        break;
-      }
-      case "TYPING": {
-        const { groupToken, username, isTyping } = data.payload;
-        if (groupToken !== activeGroupToken) break; 
-        if (username === currentUser) break; 
-        
-        const typingTimers = window._remoteTypingTimers || (window._remoteTypingTimers = {});
-        
-        if (isTyping) {
-          currentTypers.add(username);
-          clearTimeout(typingTimers[username]);
-          typingTimers[username] = setTimeout(() => {
-            currentTypers.delete(username);
-            renderTypingUI();
-          }, 7000);
-        } else {
-          currentTypers.delete(username);
-          clearTimeout(typingTimers[username]);
-        }
-        renderTypingUI();
-        break;
-      }
-    }
-  };
-
-  eventSource.onerror = () => {
-    eventSource.close();
-    setTimeout(connectStream, 3000);
-  };
-}
-
     function renderFriends(friends) {
       const sidebarList = document.getElementById("friends-sidebar-list");
       const pendingList = document.getElementById("pending-friends-list");
@@ -1490,14 +1492,17 @@
           statusBadge.style.width = "9px";
           statusBadge.style.height = "9px";
           avatarWrap.appendChild(statusBadge);
-          const nameSpan = document.createElement("span"); nameSpan.innerText = `@${otherUser}`;
+          const nameSpan = document.createElement("span"); 
+          nameSpan.innerText = `@${otherUser}`;
+          
           if (otherUser === "totally" || otherUser === "mehmetfezup") {
             const badge = document.createElement("span"); 
             badge.className = "badge-owner"; 
-            badge.innerText = "K"; // Shortened to 'K' to fit perfectly in the sidebar
+            badge.innerText = "K"; 
             badge.style.marginLeft = "6px"; 
             nameSpan.appendChild(badge); 
           }
+
           left.appendChild(avatarWrap); left.appendChild(nameSpan);
           item.appendChild(left);
           if (unread > 0) { const badge = document.createElement("span"); badge.className = "unread-badge"; badge.innerText = `[${unread}]`; item.appendChild(badge); }
@@ -2130,8 +2135,7 @@
           document.getElementById("user-role-tag").innerText = currentRole;
           renderUserAvatar(currentUser, currentUserPfp);
           
-          wsConnect();
-          connectStream();
+          connectWS();
 
           const initAudioOnce = () => { 
             initAudio(); 
