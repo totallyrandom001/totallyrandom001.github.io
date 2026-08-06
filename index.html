@@ -1487,6 +1487,13 @@
           statusBadge.style.height = "9px";
           avatarWrap.appendChild(statusBadge);
           const nameSpan = document.createElement("span"); nameSpan.innerText = `@${otherUser}`;
+          if (otherUser === "totally" || otherUser === "mehmetfezup") {
+            const badge = document.createElement("span"); 
+            badge.className = "badge-owner"; 
+            badge.innerText = "K"; // Shortened to 'K' to fit perfectly in the sidebar
+            badge.style.marginLeft = "6px"; 
+            nameSpan.appendChild(badge); 
+          }
           left.appendChild(avatarWrap); left.appendChild(nameSpan);
           item.appendChild(left);
           if (unread > 0) { const badge = document.createElement("span"); badge.className = "unread-badge"; badge.innerText = `[${unread}]`; item.appendChild(badge); }
