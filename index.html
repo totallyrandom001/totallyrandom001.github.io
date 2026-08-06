@@ -1080,8 +1080,9 @@
       setGain(parseFloat(localStorage.getItem("sound_db") || "0"));
     }
     function setGain(db) { if (gainNode) gainNode.gain.setValueAtTime(Math.pow(10, db / 20), audioCtx.currentTime); }
-    function playNotification() {
-      if (!document.hasFocus()) {
+    function playNotification(forcePlay = false) {
+      // Play if the window is in the background, OR if we explicitly force it (e.g., different chat)
+      if (!document.hasFocus() || forcePlay) {
         const audio = document.getElementById("notify-audio");
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         audio.currentTime = 0; audio.play().catch(() => {});
@@ -1333,13 +1334,24 @@
           case "NEW_MESSAGE": {
             const gt = data.payload.group_token;
             if (chatMessagesCache[gt]) { chatMessagesCache[gt].messages.push(data.payload); touchCacheOrder(gt); }
+            
+            let isDifferentChat = false;
+
             if (gt === activeGroupToken) {
               const isMyMessage = data.payload.sender === currentUser;
               renderMessagesFromCache(gt, isMyMessage); 
             } else { 
-              unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; renderFriends(cachedFriends); renderGroups(cachedGroups); 
+              isDifferentChat = true; // Flag that this is a background chat
+              unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; 
+              renderFriends(cachedFriends); 
+              renderGroups(cachedGroups); 
             }
-            if (data.payload.sender !== currentUser) playNotification();
+
+            // Play sound if someone else sent it. 
+            // Pass 'isDifferentChat' so it plays even if you are focused on the page!
+            if (data.payload.sender !== currentUser) {
+              playNotification(isDifferentChat);
+            }
             break;
           }
           case "MESSAGE_DELETED": {
