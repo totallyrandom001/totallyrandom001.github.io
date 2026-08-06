@@ -254,10 +254,16 @@
       </div>
       <button class="nav-btn active" id="btn-add-friends-tab" onclick="showAddFriendsView()">+ Arkadaş Ekle</button>
       <div class="category-header"><span>Arkadaşlar</span></div>
-      <div class="list-container-sub" id="friends-sidebar-list"></div>
+      <div class="list-container-sub" id="friends-sidebar-list">
+        <div class="loading-display-small">YÜKLENİYOR...</div>
+      </div>
+      
       <div class="category-header">
         <span>Gruplar</span>
         <button class="add-btn-icon" title="Grup Oluştur" onclick="toggleCreateGroupModal(true)">+</button>
+      </div>
+      <div class="list-container" id="groups-sidebar-list">
+        <div class="loading-display-small">YÜKLENİYOR...</div>
       </div>
       <div class="list-container" id="groups-sidebar-list"></div>
     </div>
