@@ -116,7 +116,6 @@
       .sidebar { position: fixed; top: 0; bottom: 0; left: 0; transform: translateX(-100%); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
       .sidebar.mobile-open { transform: translateX(0); }
       .sidebar-overlay.mobile-open { display: block; }
-      /* Fixed z-index from 30 to 50 below */
       .right-sidebar { position: fixed; top: 60px; bottom: 0; right: 0; z-index: 50; box-shadow: -5px 0 15px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform 0.3s ease; }
       .right-sidebar.mobile-open { transform: translateX(0); }
       .mobile-members-toggle { display: inline-flex; }
@@ -444,9 +443,12 @@
     };
 
     // ------------------------------------------------------------------
-    // GLOBAL API INTERCEPTOR (For 998 & 999)
+    // GLOBAL API INTERCEPTOR (For 998, 999, and Timeouts)
     // ------------------------------------------------------------------
     let isLoggingOut = false;
+    let consecutiveFetchFails = 0; 
+    const MAX_FETCH_FAILS = 3;     
+
     const _origFetch = window.fetch;
     window.fetch = async (...args) => {
       if (isLoggingOut) return _origFetch(...args);
@@ -454,6 +456,14 @@
       try {
         const res = await _origFetch(...args);
         
+        // Track 502 Bad Gateway / 504 Gateway Timeout as failures
+        if (res.status === 502 || res.status === 504) {
+          consecutiveFetchFails++;
+          if (consecutiveFetchFails >= MAX_FETCH_FAILS) location.reload();
+        } else {
+          consecutiveFetchFails = 0; // Reset on any successful server contact
+        }
+
         // Status Checks
         if (res.status === 998) {
           handleInvalidSession();
@@ -479,6 +489,12 @@
         }
         return res;
       } catch (error) {
+        // Track true network errors (e.g., offline, CORS fail, timeout)
+        consecutiveFetchFails++;
+        if (consecutiveFetchFails >= MAX_FETCH_FAILS) {
+          console.warn("API 3 kez zaman aşımına uğradı, sayfa yenileniyor...");
+          location.reload();
+        }
         throw error;
       }
     };
@@ -861,6 +877,9 @@
     let wsReconnTimer = null;
     let wsDestroyed = false; 
     let intendedOnline = true;
+    
+    let wsRetryCount = 0;
+    const MAX_WS_RETRIES = 3;
 
     function resetWatchdog() {
       clearTimeout(wsWatchdog);
@@ -907,6 +926,13 @@
     }
 
     function scheduleReconnect() {
+      if (wsRetryCount >= MAX_WS_RETRIES) {
+        console.warn("Stream 3 kez bağlanamadı, sayfa yenileniyor...");
+        location.reload();
+        return;
+      }
+      
+      wsRetryCount++;
       clearTimeout(wsReconnTimer);
       wsReconnTimer = setTimeout(() => {
         wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
@@ -916,6 +942,7 @@
 
     function onWSConnected() {
       wsReconnectDelay = 1000;
+      wsRetryCount = 0; 
     }
 
     function wsSend(frame) {
@@ -951,8 +978,7 @@
           localStorage.setItem("pfp", currentUserPfp);
           renderUserAvatar(currentUser, currentUserPfp);
         }
-
-        // --- FIX: REFRESH DM SUBTITLE ON RECONNECT ---
+        
         const dmSub = document.getElementById("active-subtitle");
         if (dmSub && !dmSub.classList.contains("hidden")) {
           const currentDmUser = dmSub.getAttribute("data-dm-user");
@@ -962,7 +988,6 @@
             dmSub.style.color = isOnline ? "var(--success)" : "var(--text-muted)";
           }
         }
-        // ---------------------------------------------
         
         return;
       }
@@ -978,14 +1003,12 @@
               const isMyMessage = frame.payload.sender === currentUser;
               renderMessagesFromCache(gt, isMyMessage); 
             } else { 
-              isDifferentChat = true; // Flag that this is a background chat
+              isDifferentChat = true; 
               unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; 
               renderFriends(cachedFriends); 
               renderGroups(cachedGroups); 
             }
 
-            // Play sound if someone else sent it. 
-            // Pass 'isDifferentChat' so it plays even if you are focused on the page!
             if (frame.payload.sender !== currentUser) {
               playNotification(isDifferentChat);
             }
