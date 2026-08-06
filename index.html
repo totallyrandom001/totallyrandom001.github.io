@@ -1300,164 +1300,168 @@
     }
 
     function startStream(streamToken) {
-      if (eventSource) eventSource.close();
-      eventSource = new EventSource(`${BACKEND}/api/stream?token=${streamToken}`);
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(`${BACKEND}/api/stream?token=${streamToken}`);
 
-      eventSource.onmessage = (e) => {
-        const data = JSON.parse(e.data);
+  eventSource.onmessage = (e) => {
+    const data = JSON.parse(e.data);
 
-        if (data.frameType === "I-FRAME") {
-          onlineMap = {}; 
-          cachedFriends = data.friends || [];
-          cachedFriends.forEach(f => {
-            const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
-            onlineMap[otherUser] = f.online;
-          });
-          cachedGroups = data.groups || [];
-          cachedGroups.forEach(g => {
-            if (g.members) {
-              groupMembersCache[g.group_token] = { groupInfo: g, members: g.members };
-              g.members.forEach(m => onlineMap[m.username] = m.online);
-            }
-          });
-          renderFriends(cachedFriends);
-          renderGroups(cachedGroups);
-          if (data.user && data.user.pfp) {
-            currentUserPfp = data.user.pfp;
-            localStorage.setItem("pfp", currentUserPfp);
-            renderUserAvatar(currentUser, currentUserPfp);
-          }
-          return;
-        }
-
-        switch (data.type) {
-          case "NEW_MESSAGE": {
-            const gt = data.payload.group_token;
-            if (chatMessagesCache[gt]) { chatMessagesCache[gt].messages.push(data.payload); touchCacheOrder(gt); }
-            
-            let isDifferentChat = false;
-
-            if (gt === activeGroupToken) {
-              const isMyMessage = data.payload.sender === currentUser;
-              renderMessagesFromCache(gt, isMyMessage); 
-            } else { 
-              isDifferentChat = true; // Flag that this is a background chat
-              unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; 
-              renderFriends(cachedFriends); 
-              renderGroups(cachedGroups); 
-            }
-
-            // Play sound if someone else sent it. 
-            // Pass 'isDifferentChat' so it plays even if you are focused on the page!
-            if (data.payload.sender !== currentUser) {
-              playNotification(isDifferentChat);
-            }
-            break;
-          }
-          case "MESSAGE_DELETED": {
-            const gt = data.payload.groupToken;
-            if (chatMessagesCache[gt]) chatMessagesCache[gt].messages = chatMessagesCache[gt].messages.filter(m => m.id !== data.payload.messageId);
-            if (gt === activeGroupToken) renderMessagesFromCache(gt);
-            break;
-          }
-          case "FRIEND_REQUEST": {
-            cachedFriends.push({ user1: data.payload.from, user2: currentUser, status: "pending" });
-            renderFriends(cachedFriends);
-            break;
-          }
-          case "FRIEND_ACCEPTED": {
-            const mine = data.payload.friendRowFor[currentUser];
-            if (mine) {
-              const otherUser = mine.user1 === currentUser ? mine.user2 : mine.user1;
-              if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; 
-              const idx = cachedFriends.findIndex(f =>
-                (f.user1 === mine.user1 && f.user2 === mine.user2) || (f.user1 === mine.user2 && f.user2 === mine.user1));
-              if (idx >= 0) cachedFriends[idx] = mine; else cachedFriends.push(mine);
-              renderFriends(cachedFriends);
-            }
-            break;
-          }
-          case "FRIEND_REMOVED": {
-            cachedFriends = cachedFriends.filter(f => !(f.user1 === data.payload.user1 && f.user2 === data.payload.user2));
-            renderFriends(cachedFriends);
-            break;
-          }
-          case "GROUP_MEMBER_ADDED": {
-            const gt = data.payload.groupToken;
-            if (!cachedGroups.find(g => g.group_token === gt)) cachedGroups.push(data.payload.group);
-            renderGroups(cachedGroups);
-            if (groupMembersCache[gt]) {
-              groupMembersCache[gt].members.push(data.payload.newMember);
-              if (!(data.payload.newMember.username in onlineMap)) onlineMap[data.payload.newMember.username] = false; 
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            break;
-          }
-          case "GROUP_MEMBER_LEFT": {
-            const gt = data.payload.groupToken;
-            if (data.payload.username === currentUser) {
-              cachedGroups = cachedGroups.filter(g => g.group_token !== gt);
-              delete chatMessagesCache[gt]; delete groupMembersCache[gt];
-              if (activeGroupToken === gt) showAddFriendsView();
-              renderGroups(cachedGroups);
-            } else if (groupMembersCache[gt]) {
-              groupMembersCache[gt].members = groupMembersCache[gt].members.filter(m => m.username !== data.payload.username);
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            break;
-          }
-          case "GROUP_SETTING_UPDATED": {
-            const gt = data.payload.groupToken;
-            if (groupMembersCache[gt]) {
-              groupMembersCache[gt].groupInfo.allow_sub_invites = data.payload.allow_sub_invites;
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            const g = cachedGroups.find(g => g.group_token === gt);
-            if (g) g.allow_sub_invites = data.payload.allow_sub_invites;
-            break;
-          }
-          case "GROUP_PERM_UPDATED": {
-            const gt = data.payload.groupToken;
-            if (groupMembersCache[gt]) {
-              const m = groupMembersCache[gt].members.find(m => m.username === data.payload.username);
-              if (m) m.can_add_members = data.payload.can_add_members;
-              if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
-            }
-            break;
-          }
-          case "PRESENCE_CHANGED": {
-            handlePresenceChange(data.payload.username, data.payload.online);
-            break;
-          }
-          case "TYPING": {
-            const { groupToken, username, isTyping } = data.payload;
-            if (groupToken !== activeGroupToken) break; 
-            if (username === currentUser) break; 
-            
-            const typingTimers = window._remoteTypingTimers || (window._remoteTypingTimers = {});
-            
-            if (isTyping) {
-              currentTypers.add(username);
-              clearTimeout(typingTimers[username]);
-              typingTimers[username] = setTimeout(() => {
-                currentTypers.delete(username);
-                renderTypingUI();
-              }, 7000);
-            } else {
-              currentTypers.delete(username);
-              clearTimeout(typingTimers[username]);
-            }
-            renderTypingUI();
-            break;
-          }
-        }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setTimeout(connectStream, 3000);
-      };
+    if (data.frameType === "ERROR" && data.code === "CONNECTION_TIMEOUT") {
+      eventSource.close();
+      connectStream();
+      return;
     }
+
+    if (data.frameType === "I-FRAME") {
+      onlineMap = {}; 
+      cachedFriends = data.friends || [];
+      cachedFriends.forEach(f => {
+        const otherUser = f.user1 === currentUser ? f.user2 : f.user1;
+        onlineMap[otherUser] = f.online;
+      });
+      cachedGroups = data.groups || [];
+      cachedGroups.forEach(g => {
+        if (g.members) {
+          groupMembersCache[g.group_token] = { groupInfo: g, members: g.members };
+          g.members.forEach(m => onlineMap[m.username] = m.online);
+        }
+      });
+      renderFriends(cachedFriends);
+      renderGroups(cachedGroups);
+      if (data.user && data.user.pfp) {
+        currentUserPfp = data.user.pfp;
+        localStorage.setItem("pfp", currentUserPfp);
+        renderUserAvatar(currentUser, currentUserPfp);
+      }
+      return;
+    }
+
+    switch (data.type) {
+      case "NEW_MESSAGE": {
+        const gt = data.payload.group_token;
+        if (chatMessagesCache[gt]) { chatMessagesCache[gt].messages.push(data.payload); touchCacheOrder(gt); }
+        
+        let isDifferentChat = false;
+
+        if (gt === activeGroupToken) {
+          const isMyMessage = data.payload.sender === currentUser;
+          renderMessagesFromCache(gt, isMyMessage); 
+        } else { 
+          isDifferentChat = true;
+          unreadCounts[gt] = (unreadCounts[gt] || 0) + 1; 
+          renderFriends(cachedFriends); 
+          renderGroups(cachedGroups); 
+        }
+
+        if (data.payload.sender !== currentUser) {
+          playNotification(isDifferentChat);
+        }
+        break;
+      }
+      case "MESSAGE_DELETED": {
+        const gt = data.payload.groupToken;
+        if (chatMessagesCache[gt]) chatMessagesCache[gt].messages = chatMessagesCache[gt].messages.filter(m => m.id !== data.payload.messageId);
+        if (gt === activeGroupToken) renderMessagesFromCache(gt);
+        break;
+      }
+      case "FRIEND_REQUEST": {
+        cachedFriends.push({ user1: data.payload.from, user2: currentUser, status: "pending" });
+        renderFriends(cachedFriends);
+        break;
+      }
+      case "FRIEND_ACCEPTED": {
+        const mine = data.payload.friendRowFor[currentUser];
+        if (mine) {
+          const otherUser = mine.user1 === currentUser ? mine.user2 : mine.user1;
+          if (!(otherUser in onlineMap)) onlineMap[otherUser] = false; 
+          const idx = cachedFriends.findIndex(f =>
+            (f.user1 === mine.user1 && f.user2 === mine.user2) || (f.user1 === mine.user2 && f.user2 === mine.user1));
+          if (idx >= 0) cachedFriends[idx] = mine; else cachedFriends.push(mine);
+          renderFriends(cachedFriends);
+        }
+        break;
+      }
+      case "FRIEND_REMOVED": {
+        cachedFriends = cachedFriends.filter(f => !(f.user1 === data.payload.user1 && f.user2 === data.payload.user2));
+        renderFriends(cachedFriends);
+        break;
+      }
+      case "GROUP_MEMBER_ADDED": {
+        const gt = data.payload.groupToken;
+        if (!cachedGroups.find(g => g.group_token === gt)) cachedGroups.push(data.payload.group);
+        renderGroups(cachedGroups);
+        if (groupMembersCache[gt]) {
+          groupMembersCache[gt].members.push(data.payload.newMember);
+          if (!(data.payload.newMember.username in onlineMap)) onlineMap[data.payload.newMember.username] = false; 
+          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+        }
+        break;
+      }
+      case "GROUP_MEMBER_LEFT": {
+        const gt = data.payload.groupToken;
+        if (data.payload.username === currentUser) {
+          cachedGroups = cachedGroups.filter(g => g.group_token !== gt);
+          delete chatMessagesCache[gt]; delete groupMembersCache[gt];
+          if (activeGroupToken === gt) showAddFriendsView();
+          renderGroups(cachedGroups);
+        } else if (groupMembersCache[gt]) {
+          groupMembersCache[gt].members = groupMembersCache[gt].members.filter(m => m.username !== data.payload.username);
+          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+        }
+        break;
+      }
+      case "GROUP_SETTING_UPDATED": {
+        const gt = data.payload.groupToken;
+        if (groupMembersCache[gt]) {
+          groupMembersCache[gt].groupInfo.allow_sub_invites = data.payload.allow_sub_invites;
+          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+        }
+        const g = cachedGroups.find(g => g.group_token === gt);
+        if (g) g.allow_sub_invites = data.payload.allow_sub_invites;
+        break;
+      }
+      case "GROUP_PERM_UPDATED": {
+        const gt = data.payload.groupToken;
+        if (groupMembersCache[gt]) {
+          const m = groupMembersCache[gt].members.find(m => m.username === data.payload.username);
+          if (m) m.can_add_members = data.payload.can_add_members;
+          if (gt === activeGroupToken) renderGroupMembersFromCache(gt);
+        }
+        break;
+      }
+      case "PRESENCE_CHANGED": {
+        handlePresenceChange(data.payload.username, data.payload.online);
+        break;
+      }
+      case "TYPING": {
+        const { groupToken, username, isTyping } = data.payload;
+        if (groupToken !== activeGroupToken) break; 
+        if (username === currentUser) break; 
+        
+        const typingTimers = window._remoteTypingTimers || (window._remoteTypingTimers = {});
+        
+        if (isTyping) {
+          currentTypers.add(username);
+          clearTimeout(typingTimers[username]);
+          typingTimers[username] = setTimeout(() => {
+            currentTypers.delete(username);
+            renderTypingUI();
+          }, 7000);
+        } else {
+          currentTypers.delete(username);
+          clearTimeout(typingTimers[username]);
+        }
+        renderTypingUI();
+        break;
+      }
+    }
+  };
+
+  eventSource.onerror = () => {
+    eventSource.close();
+    setTimeout(connectStream, 3000);
+  };
+}
 
     function renderFriends(friends) {
       const sidebarList = document.getElementById("friends-sidebar-list");
